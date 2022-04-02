@@ -47,7 +47,7 @@ void setup()
   // init with high specs to pre-allocate larger buffers
   if(psramFound())
   {
-    config.frame_size = FRAMESIZE_QVGA;
+    config.frame_size = FRAMESIZE_HQVGA;
     config.jpeg_quality = 10;
     config.fb_count = 2;
   }
