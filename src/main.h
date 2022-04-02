@@ -8,8 +8,7 @@
 #ifndef main_h
 #define main_h
 
-#define DOCSIZE 1500
-#define MQTT_MAX_PACKET_SIZE 10000
+#define DOCSIZE 256
 #include <libudawa.h>
 #include <TaskManagerIO.h>
 #include "soc/soc.h"
@@ -17,6 +16,7 @@
 #include "esp_camera.h"
 #include <base64.h>
 #include <libb64/cencode.h>
+#include "mbedtls/base64.h"
 
 #define CURRENT_FIRMWARE_TITLE "UDAWA-Sudarsan"
 #define CURRENT_FIRMWARE_VERSION "0.0.1"

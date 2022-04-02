@@ -21,10 +21,7 @@ GenericCallback callbacks[callbacksSize] = {
 
 void setup()
 {
-  startup();
-  loadSettings();
-  
-   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); 
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
@@ -45,20 +42,32 @@ void setup()
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 20000000;
-  config.pixel_format = PIXFORMAT_GRAYSCALE;
+  config.pixel_format = PIXFORMAT_JPEG;
 
   // init with high specs to pre-allocate larger buffers
-  if(psramFound()){
-    config.frame_size = FRAMESIZE_CIF;
-  } else {
-    config.frame_size = FRAMESIZE_CIF;
+  if(psramFound())
+  {
+    config.frame_size = FRAMESIZE_QVGA;
+    config.jpeg_quality = 10;
+    config.fb_count = 2;
   }
-  
+  else
+  {
+    config.frame_size = FRAMESIZE_96X96;
+    config.jpeg_quality = 20;
+    config.fb_count = 1;
+  }
+
   // camera init
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
     Serial.printf("Camera init failed with error 0x%x", err);
   }
+
+  delay(1000);
+
+  startup();
+  loadSettings();
 
   if(mySettings.fTeleDev)
   {
@@ -236,7 +245,7 @@ void publishDeviceTelemetry()
 {
   StaticJsonDocument<DOCSIZE> doc;
 
-  doc["heap"] = heap_caps_get_free_size(MALLOC_CAP_8BIT);;
+  doc["heap"] = heap_caps_get_free_size(MALLOC_CAP_8BIT);
   doc["rssi"] = WiFi.RSSI();
   doc["uptime"] = millis()/1000;
   tb.sendTelemetryDoc(doc);
@@ -251,23 +260,36 @@ void myTask()
   if (!fb) {
     sprintf_P(logBuff, PSTR("Camera capture failed."));
     recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
-  } 
-  else {
-    {
-      String imgDataB64 = base64::encode(fb->buf, fb->len);
-      esp_camera_fb_return(fb);
+  }
+  else
+  {
+    int freeHeapBefore = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+    String imgDataB64 = base64::encode(fb->buf, fb->len);
+    esp_camera_fb_return(fb);
+    int freeHeapAfter = heap_caps_get_free_size(MALLOC_CAP_8BIT);
 
-      DynamicJsonDocument<10000> doc;
- 
-      doc["b64"] = imgDataB64;
-      doc["w"] = fb->width;
-      doc["h"] = fb->height;
-      doc["f"] = fb->format;
-      
-      String data;
-      serializeJson(doc, data);
-      tb.sendAttributeJSON(data.c_str());
-      doc.clear();
-    }
+    sprintf_P(logBuff, PSTR("Free heap: %d vs %d - Image buffer length: %d - after base64: %d"), freeHeapBefore, freeHeapAfter, fb->len, imgDataB64.length());
+    recordLog(5, PSTR(__FILE__), __LINE__, PSTR(__func__));
+
+    DynamicJsonDocument doc(imgDataB64.length() + 128);
+    doc["b64"] = imgDataB64;
+    doc["w"] = fb->width;
+    doc["h"] = fb->height;
+    doc["f"] = fb->format;
+
+
+    String data;
+    serializeJson(doc, data);
+    doc.clear();
+
+    uint16_t maxSize = data.length() + (uint16_t)128;
+    bool setBufferSizeStatus = tb.setBufferSize(maxSize);
+
+    bool deliveryStatus = tb.sendTelemetryJson(data.c_str());
+
+    sprintf_P(logBuff, PSTR("Final data length: %d - BufferSize: %d - targetBufferSize: %d - Set Buffer Status: %d, Delivery Status: %d"), data.length(), tb.getBufferSize(), maxSize, (int)setBufferSizeStatus, (int)deliveryStatus);
+    recordLog(5, PSTR(__FILE__), __LINE__, PSTR(__func__));
+
+    tb.setBufferSize(DOCSIZE);
   }
 }
