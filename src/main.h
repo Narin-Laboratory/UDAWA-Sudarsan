@@ -8,20 +8,21 @@
 #ifndef main_h
 #define main_h
 
-#define DOCSIZE 256
+#define DOCSIZE 1024
 #include <libudawa.h>
 #include <TaskManagerIO.h>
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 #include "esp_camera.h"
-#include <base64.h>
+//#include <base64.h>
 #include <libb64/cencode.h>
-#include "mbedtls/base64.h"
+//#include "mbedtls/base64.h"
 
 #define CURRENT_FIRMWARE_TITLE "UDAWA-Sudarsan"
 #define CURRENT_FIRMWARE_VERSION "0.0.1"
 
 // CAMERA_MODEL_AI_THINKER
+#define CAMERA_MODEL_AI_THINKER
 #define PWDN_GPIO_NUM     32
 #define RESET_GPIO_NUM    -1
 #define XCLK_GPIO_NUM      0
@@ -48,6 +49,7 @@ struct Settings
     bool fTeleDev;
     unsigned long publishInterval;
     unsigned long myTaskInterval;
+    unsigned long myTaskCounter;
 };
 
 callbackResponse processSaveConfig(const callbackData &data);

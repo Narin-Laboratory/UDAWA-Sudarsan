@@ -21,6 +21,9 @@ GenericCallback callbacks[callbacksSize] = {
 
 void setup()
 {
+  startup();
+  loadSettings();
+
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
@@ -44,30 +47,20 @@ void setup()
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
 
-  // init with high specs to pre-allocate larger buffers
-  if(psramFound())
-  {
-    config.frame_size = FRAMESIZE_HQVGA;
-    config.jpeg_quality = 10;
-    config.fb_count = 2;
-  }
-  else
-  {
-    config.frame_size = FRAMESIZE_96X96;
-    config.jpeg_quality = 20;
-    config.fb_count = 1;
-  }
+
+  config.frame_size = FRAMESIZE_QCIF;
+  config.jpeg_quality = 10;
+  config.fb_count = 2;
 
   // camera init
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
-    Serial.printf("Camera init failed with error 0x%x", err);
+    sprintf_P(logBuff, PSTR("Camera init failed with error 0x%x"), err);
+    recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
   }
 
-  delay(1000);
-
-  startup();
-  loadSettings();
+  delay(3000);
+  networkInit();
 
   if(mySettings.fTeleDev)
   {
@@ -129,7 +122,7 @@ void loadSettings()
   }
   else
   {
-    mySettings.myTaskInterval = 30000;
+    mySettings.myTaskInterval = 3000;
   }
 
 }
@@ -254,42 +247,47 @@ void publishDeviceTelemetry()
 
 void myTask()
 {
-  //capture gambar
-  camera_fb_t * fb = NULL;
-  fb = esp_camera_fb_get();
-  if (!fb) {
-    sprintf_P(logBuff, PSTR("Camera capture failed."));
-    recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
-  }
-  else
+  if(tb.connected())
   {
-    int freeHeapBefore = heap_caps_get_free_size(MALLOC_CAP_8BIT);
-    String imgDataB64 = base64::encode(fb->buf, fb->len);
-    esp_camera_fb_return(fb);
-    int freeHeapAfter = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+    //capture gambar
+    camera_fb_t * fb = NULL;
+    fb = esp_camera_fb_get();
+    if (!fb) {
+      sprintf_P(logBuff, PSTR("Camera capture failed."));
+      recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
+    }
+    else
+    {
+      size_t size = base64_encode_expected_len(fb->len) + 1;
+      char * buffer = (char *) malloc(size);
+      if(buffer) {
+        base64_encodestate _state;
+        base64_init_encodestate(&_state);
+        int len = base64_encode_block((const char *) &fb->buf[0], fb->len, &buffer[0], &_state);
+        len = base64_encode_blockend((buffer + len), &_state);
+      }
+      esp_camera_fb_return(fb);
+      DynamicJsonDocument doc(size);
+      doc["b64"] = String(buffer).c_str();
+      free(buffer);
+      doc["w"] = fb->width;
+      doc["h"] = fb->height;
+      doc["f"] = fb->format;
 
-    sprintf_P(logBuff, PSTR("Free heap: %d vs %d - Image buffer length: %d - after base64: %d"), freeHeapBefore, freeHeapAfter, fb->len, imgDataB64.length());
-    recordLog(5, PSTR(__FILE__), __LINE__, PSTR(__func__));
+      size_t dataSize = size + 128;
+      char data[dataSize];
+      size_t finalDataSize = serializeJson(doc, data, dataSize);
+      doc.clear();
+      size_t targetBufferSize = finalDataSize + 128;
+      bool setBufferSizeStatus = tb.setBufferSize(targetBufferSize);
+      bool deliveryStatus = tb.sendTelemetryJson(data);
 
-    DynamicJsonDocument doc(imgDataB64.length() + 128);
-    doc["b64"] = imgDataB64;
-    doc["w"] = fb->width;
-    doc["h"] = fb->height;
-    doc["f"] = fb->format;
-
-
-    String data;
-    serializeJson(doc, data);
-    doc.clear();
-
-    uint16_t maxSize = data.length() + (uint16_t)128;
-    bool setBufferSizeStatus = tb.setBufferSize(maxSize);
-
-    bool deliveryStatus = tb.sendTelemetryJson(data.c_str());
-
-    sprintf_P(logBuff, PSTR("Final data length: %d - BufferSize: %d - targetBufferSize: %d - Set Buffer Status: %d, Delivery Status: %d"), data.length(), tb.getBufferSize(), maxSize, (int)setBufferSizeStatus, (int)deliveryStatus);
-    recordLog(5, PSTR(__FILE__), __LINE__, PSTR(__func__));
-
-    tb.setBufferSize(DOCSIZE);
+      int freeHeap = (int)heap_caps_get_free_size(MALLOC_CAP_8BIT)/(int)8;
+      sprintf_P(logBuff, PSTR("size: %d - buf: %d vs %d (%d) vs %d - sent: %d"),
+        finalDataSize, targetBufferSize, tb.getBufferSize(),
+        (int)setBufferSizeStatus, freeHeap, (int)deliveryStatus);
+      recordLog(5, PSTR(__FILE__), __LINE__, PSTR(__func__));
+      tb.setBufferSize(DOCSIZE);
+    }
   }
 }
