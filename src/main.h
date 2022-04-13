@@ -9,7 +9,6 @@
 #define main_h
 
 #define DOCSIZE 1024
-#include <libudawa.h>
 #include <TaskManagerIO.h>
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
@@ -17,6 +16,7 @@
 //#include <base64.h>
 #include <libb64/cencode.h>
 //#include "mbedtls/base64.h"
+#include <libudawa.h>
 
 #define CURRENT_FIRMWARE_TITLE "UDAWA-Sudarsan"
 #define CURRENT_FIRMWARE_VERSION "0.0.1"
@@ -49,8 +49,22 @@ struct Settings
     bool fTeleDev;
     unsigned long publishInterval;
     unsigned long myTaskInterval;
-    unsigned long myTaskCounter;
 };
+
+struct SpiRamAllocator {
+  void* allocate(size_t size) {
+    return heap_caps_malloc(size, MALLOC_CAP_SPIRAM);
+  }
+
+  void deallocate(void* pointer) {
+    heap_caps_free(pointer);
+  }
+
+  void* reallocate(void* ptr, size_t new_size) {
+    return heap_caps_realloc(ptr, new_size, MALLOC_CAP_SPIRAM);
+  }
+};
+using SpiRamJsonDocument = BasicJsonDocument<SpiRamAllocator>;
 
 callbackResponse processSaveConfig(const callbackData &data);
 callbackResponse processSaveSettings(const callbackData &data);

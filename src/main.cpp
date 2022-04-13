@@ -48,7 +48,7 @@ void setup()
   config.pixel_format = PIXFORMAT_JPEG;
 
 
-  config.frame_size = FRAMESIZE_QCIF;
+  config.frame_size = FRAMESIZE_QVGA;
   config.jpeg_quality = 10;
   config.fb_count = 2;
 
@@ -238,7 +238,7 @@ void publishDeviceTelemetry()
 {
   StaticJsonDocument<DOCSIZE> doc;
 
-  doc["heap"] = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+  doc["heap"] = heap_caps_get_free_size(MALLOC_CAP_32BIT);
   doc["rssi"] = WiFi.RSSI();
   doc["uptime"] = millis()/1000;
   tb.sendTelemetryDoc(doc);
@@ -249,9 +249,9 @@ void myTask()
 {
   if(tb.connected())
   {
-    //capture gambar
     camera_fb_t * fb = NULL;
     fb = esp_camera_fb_get();
+
     if (!fb) {
       sprintf_P(logBuff, PSTR("Camera capture failed."));
       recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
@@ -259,7 +259,7 @@ void myTask()
     else
     {
       size_t size = base64_encode_expected_len(fb->len) + 1;
-      char * buffer = (char *) malloc(size);
+      char * buffer = (char *) ps_malloc(size);
       if(buffer) {
         base64_encodestate _state;
         base64_init_encodestate(&_state);
@@ -267,27 +267,73 @@ void myTask()
         len = base64_encode_blockend((buffer + len), &_state);
       }
       esp_camera_fb_return(fb);
-      DynamicJsonDocument doc(size);
+
+      SpiRamJsonDocument doc(size + 64);
       doc["b64"] = String(buffer).c_str();
       free(buffer);
       doc["w"] = fb->width;
       doc["h"] = fb->height;
       doc["f"] = fb->format;
 
-      size_t dataSize = size + 128;
-      char data[dataSize];
+      size_t dataSize = size + 64;
+      char * data = (char *) ps_malloc(dataSize);
       size_t finalDataSize = serializeJson(doc, data, dataSize);
+      serializeJson(doc, Serial);
       doc.clear();
-      size_t targetBufferSize = finalDataSize + 128;
+      size_t targetBufferSize = finalDataSize + 64;
       bool setBufferSizeStatus = tb.setBufferSize(targetBufferSize);
+
       bool deliveryStatus = tb.sendTelemetryJson(data);
 
-      int freeHeap = (int)heap_caps_get_free_size(MALLOC_CAP_8BIT)/(int)8;
       sprintf_P(logBuff, PSTR("size: %d - buf: %d vs %d (%d) vs %d - sent: %d"),
         finalDataSize, targetBufferSize, tb.getBufferSize(),
-        (int)setBufferSizeStatus, freeHeap, (int)deliveryStatus);
-      recordLog(5, PSTR(__FILE__), __LINE__, PSTR(__func__));
+        (int)setBufferSizeStatus, heap_caps_get_free_size(MALLOC_CAP_32BIT), (int)deliveryStatus);
+      recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
+
+      free(data);
       tb.setBufferSize(DOCSIZE);
+      /*
+      //capture gambar
+      camera_fb_t * fb = NULL;
+      fb = esp_camera_fb_get();
+      if (!fb) {
+        sprintf_P(logBuff, PSTR("Camera capture failed."));
+        recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
+      }
+      else
+      {
+        size_t size = base64_encode_expected_len(fb->len) + 1;
+        char * buffer = (char *) malloc(size);
+        if(buffer) {
+          base64_encodestate _state;
+          base64_init_encodestate(&_state);
+          int len = base64_encode_block((const char *) &fb->buf[0], fb->len, &buffer[0], &_state);
+          len = base64_encode_blockend((buffer + len), &_state);
+        }
+        esp_camera_fb_return(fb);
+        DynamicJsonDocument doc(size);
+        doc["b64"] = String(buffer).c_str();
+        free(buffer);
+        doc["w"] = fb->width;
+        doc["h"] = fb->height;
+        doc["f"] = fb->format;
+
+        size_t dataSize = size + 128;
+        char data[dataSize];
+        size_t finalDataSize = serializeJson(doc, data, dataSize);
+        doc.clear();
+        size_t targetBufferSize = finalDataSize + 128;
+        bool setBufferSizeStatus = tb.setBufferSize(targetBufferSize);
+        bool deliveryStatus = tb.sendTelemetryJson(data);
+
+        int freeHeap = (int)heap_caps_get_free_size(MALLOC_CAP_8BIT)/(int)8;
+        sprintf_P(logBuff, PSTR("size: %d - buf: %d vs %d (%d) vs %d - sent: %d"),
+          finalDataSize, targetBufferSize, tb.getBufferSize(),
+          (int)setBufferSizeStatus, freeHeap, (int)deliveryStatus);
+        recordLog(5, PSTR(__FILE__), __LINE__, PSTR(__func__));
+        tb.setBufferSize(DOCSIZE);
+      }
+      */
     }
   }
 }
