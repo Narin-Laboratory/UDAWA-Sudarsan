@@ -48,7 +48,7 @@ void setup()
   config.pixel_format = PIXFORMAT_JPEG;
 
 
-  config.frame_size = FRAMESIZE_QVGA;
+  config.frame_size = FRAMESIZE_HVGA;
   config.jpeg_quality = 10;
   config.fb_count = 2;
 
@@ -276,21 +276,21 @@ void myTask()
       doc["h"] = fb->height;
       doc["f"] = fb->format;
 
-      size_t dataSize = size + 64;
-      char * data = (char *) ps_malloc(dataSize);
-      size_t finalDataSize = serializeJson(doc, data, dataSize);
+      size_t finalDataSize = measureJson(doc);
+      char * data = (char *) ps_malloc(finalDataSize);
+      serializeJson(doc, data, finalDataSize);
       doc.clear();
 
-      size_t targetBufferSize = finalDataSize + 64;
-      bool setBufferSizeStatus = tb.setBufferSize(targetBufferSize);
-      bool deliveryStatus = tb.sendTelemetryJson(data);
-      int freeHeap = (int)heap_caps_get_free_size(MALLOC_CAP_8BIT)/(int)8;
-      sprintf_P(logBuff, PSTR("size: %d - buf: %d vs %d (%d) vs %d - sent: %d"),
-        finalDataSize, targetBufferSize, tb.getBufferSize(),
-        (int)setBufferSizeStatus, freeHeap, (int)deliveryStatus);
-      recordLog(5, PSTR(__FILE__), __LINE__, PSTR(__func__));
-      tb.setBufferSize(DOCSIZE);
-      free(data);
+      tb.beginPublish("v1/devices/me/telemetry", finalDataSize, 0);
+      for(int i=0;i<finalDataSize;i++){
+        float progress = ((float)i+1.0) / (float)(finalDataSize) * 100.0;
+        sprintf_P(logBuff, PSTR("Sending chunk of captured data %d/%d: (%.2f %%)"), i+1, finalDataSize, progress);
+        Serial.print(data[i]);
+        Serial.print(" - ");
+        Serial.println(logBuff);
+        tb.write(data[i]);
+      }
+      tb.endPublish();
     }
   }
 }
