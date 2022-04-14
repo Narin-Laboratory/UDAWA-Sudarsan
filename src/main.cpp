@@ -61,6 +61,7 @@ void setup()
 
   delay(3000);
   networkInit();
+  tb.setKeepAlive(300);
 
   if(mySettings.fTeleDev)
   {
@@ -122,7 +123,7 @@ void loadSettings()
   }
   else
   {
-    mySettings.myTaskInterval = 3000;
+    mySettings.myTaskInterval = 30000;
   }
 
 }
@@ -278,62 +279,16 @@ void myTask()
       size_t dataSize = size + 64;
       char * data = (char *) ps_malloc(dataSize);
       size_t finalDataSize = serializeJson(doc, data, dataSize);
-      serializeJson(doc, Serial);
       doc.clear();
       size_t targetBufferSize = finalDataSize + 64;
-      bool setBufferSizeStatus = tb.setBufferSize(targetBufferSize);
 
       bool deliveryStatus = tb.sendTelemetryJson(data);
 
-      sprintf_P(logBuff, PSTR("size: %d - buf: %d vs %d (%d) vs %d - sent: %d"),
-        finalDataSize, targetBufferSize, tb.getBufferSize(),
-        (int)setBufferSizeStatus, heap_caps_get_free_size(MALLOC_CAP_32BIT), (int)deliveryStatus);
+      sprintf_P(logBuff, PSTR("size: %d - buf: %d - free %d - sent: %d"),
+        finalDataSize, targetBufferSize, heap_caps_get_free_size(MALLOC_CAP_32BIT), (int)deliveryStatus);
       recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
 
       free(data);
-      tb.setBufferSize(DOCSIZE);
-      /*
-      //capture gambar
-      camera_fb_t * fb = NULL;
-      fb = esp_camera_fb_get();
-      if (!fb) {
-        sprintf_P(logBuff, PSTR("Camera capture failed."));
-        recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
-      }
-      else
-      {
-        size_t size = base64_encode_expected_len(fb->len) + 1;
-        char * buffer = (char *) malloc(size);
-        if(buffer) {
-          base64_encodestate _state;
-          base64_init_encodestate(&_state);
-          int len = base64_encode_block((const char *) &fb->buf[0], fb->len, &buffer[0], &_state);
-          len = base64_encode_blockend((buffer + len), &_state);
-        }
-        esp_camera_fb_return(fb);
-        DynamicJsonDocument doc(size);
-        doc["b64"] = String(buffer).c_str();
-        free(buffer);
-        doc["w"] = fb->width;
-        doc["h"] = fb->height;
-        doc["f"] = fb->format;
-
-        size_t dataSize = size + 128;
-        char data[dataSize];
-        size_t finalDataSize = serializeJson(doc, data, dataSize);
-        doc.clear();
-        size_t targetBufferSize = finalDataSize + 128;
-        bool setBufferSizeStatus = tb.setBufferSize(targetBufferSize);
-        bool deliveryStatus = tb.sendTelemetryJson(data);
-
-        int freeHeap = (int)heap_caps_get_free_size(MALLOC_CAP_8BIT)/(int)8;
-        sprintf_P(logBuff, PSTR("size: %d - buf: %d vs %d (%d) vs %d - sent: %d"),
-          finalDataSize, targetBufferSize, tb.getBufferSize(),
-          (int)setBufferSizeStatus, freeHeap, (int)deliveryStatus);
-        recordLog(5, PSTR(__FILE__), __LINE__, PSTR(__func__));
-        tb.setBufferSize(DOCSIZE);
-      }
-      */
     }
   }
 }
