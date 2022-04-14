@@ -122,7 +122,7 @@ void loadSettings()
   }
   else
   {
-    mySettings.myTaskInterval = 3000;
+    mySettings.myTaskInterval = 30000;
   }
 
 }
