@@ -9,14 +9,15 @@
 
 Settings mySettings;
 
-const size_t callbacksSize = 6;
+const size_t callbacksSize = 7;
 GenericCallback callbacks[callbacksSize] = {
   { "sharedAttributesUpdate", processSharedAttributesUpdate },
   { "provisionResponse", processProvisionResponse },
   { "saveConfig", processSaveConfig },
   { "saveSettings", processSaveSettings },
   { "syncClientAttributes", processSyncClientAttributes },
-  { "reboot", processReboot }
+  { "reboot", processReboot },
+  { "snap", processSnap }
 };
 
 void setup()
@@ -24,43 +25,8 @@ void setup()
   startup();
   loadSettings();
 
-  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
-  camera_config_t config;
-  config.ledc_channel = LEDC_CHANNEL_0;
-  config.ledc_timer = LEDC_TIMER_0;
-  config.pin_d0 = Y2_GPIO_NUM;
-  config.pin_d1 = Y3_GPIO_NUM;
-  config.pin_d2 = Y4_GPIO_NUM;
-  config.pin_d3 = Y5_GPIO_NUM;
-  config.pin_d4 = Y6_GPIO_NUM;
-  config.pin_d5 = Y7_GPIO_NUM;
-  config.pin_d6 = Y8_GPIO_NUM;
-  config.pin_d7 = Y9_GPIO_NUM;
-  config.pin_xclk = XCLK_GPIO_NUM;
-  config.pin_pclk = PCLK_GPIO_NUM;
-  config.pin_vsync = VSYNC_GPIO_NUM;
-  config.pin_href = HREF_GPIO_NUM;
-  config.pin_sscb_sda = SIOD_GPIO_NUM;
-  config.pin_sscb_scl = SIOC_GPIO_NUM;
-  config.pin_pwdn = PWDN_GPIO_NUM;
-  config.pin_reset = RESET_GPIO_NUM;
-  config.xclk_freq_hz = 20000000;
-  config.pixel_format = PIXFORMAT_JPEG;
-
-
-  config.frame_size = FRAMESIZE_HVGA;
-  config.jpeg_quality = 10;
-  config.fb_count = 2;
-
-  // camera init
-  esp_err_t err = esp_camera_init(&config);
-  if (err != ESP_OK) {
-    sprintf_P(logBuff, PSTR("Camera init failed with error 0x%x"), err);
-    recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
-  }
-
-  delay(3000);
   networkInit();
+  tb.setBufferSize(DOCSIZE);
 
   if(mySettings.fTeleDev)
   {
@@ -69,9 +35,11 @@ void setup()
     });
   }
 
-  taskManager.scheduleFixedRate(mySettings.myTaskInterval, [] {
-    myTask();
-  });
+  if(mySettings.myTaskInterval > 0){
+    taskManager.scheduleFixedRate(mySettings.myTaskInterval, [] {
+      myTask();
+    });
+  }
 }
 
 void loop()
@@ -125,6 +93,15 @@ void loadSettings()
     mySettings.myTaskInterval = 30000;
   }
 
+  if(doc["frameSize"] != nullptr)
+  {
+    mySettings.frameSize = doc["frameSize"].as<uint8_t>();
+  }
+  else
+  {
+    mySettings.frameSize = 1;
+  }
+
 }
 
 void saveSettings()
@@ -133,7 +110,7 @@ void saveSettings()
 
   doc["fTeleDev"] = mySettings.fTeleDev;
   doc["myTaskInterval"] = mySettings.myTaskInterval;
-
+  doc["frameSize"] = mySettings.frameSize;
 
   writeSettings(doc, settingsPath);
 }
@@ -157,6 +134,12 @@ callbackResponse processReboot(const callbackData &data)
 {
   reboot();
   return callbackResponse("reboot", 1);
+}
+
+callbackResponse processSnap(const callbackData &data)
+{
+  myTask();
+  return callbackResponse("snap", 1);
 }
 
 callbackResponse processSyncClientAttributes(const callbackData &data)
@@ -186,6 +169,7 @@ callbackResponse processSharedAttributesUpdate(const callbackData &data)
 
   if(data["fTeleDev"] != nullptr){mySettings.fTeleDev = data["fTeleDev"].as<bool>();}
   if(data["myTaskInterval"] != nullptr){mySettings.myTaskInterval = data["myTaskInterval"].as<unsigned long>();}
+  if(data["frameSize"] != nullptr){mySettings.frameSize = data["frameSize"].as<uint8_t>();}
 
   mySettings.lastUpdated = millis();
   return callbackResponse("sharedAttributesUpdate", 1);
@@ -229,6 +213,7 @@ void syncClientAttributes()
   doc["logLev"] = config.logLev;
   doc["fTeleDev"] = mySettings.fTeleDev;
   doc["myTaskInterval"] = mySettings.myTaskInterval;
+  doc["frameSize"] = mySettings.frameSize;
 
   tb.sendAttributeDoc(doc);
   doc.clear();
@@ -247,15 +232,51 @@ void publishDeviceTelemetry()
 
 void myTask()
 {
-  //if(tb.connected())
-  if(true)
+  if(tb.connected())
   {
+    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+    camera_config_t cam;
+    cam.ledc_channel = LEDC_CHANNEL_0;
+    cam.ledc_timer = LEDC_TIMER_0;
+    cam.pin_d0 = Y2_GPIO_NUM;
+    cam.pin_d1 = Y3_GPIO_NUM;
+    cam.pin_d2 = Y4_GPIO_NUM;
+    cam.pin_d3 = Y5_GPIO_NUM;
+    cam.pin_d4 = Y6_GPIO_NUM;
+    cam.pin_d5 = Y7_GPIO_NUM;
+    cam.pin_d6 = Y8_GPIO_NUM;
+    cam.pin_d7 = Y9_GPIO_NUM;
+    cam.pin_xclk = XCLK_GPIO_NUM;
+    cam.pin_pclk = PCLK_GPIO_NUM;
+    cam.pin_vsync = VSYNC_GPIO_NUM;
+    cam.pin_href = HREF_GPIO_NUM;
+    cam.pin_sscb_sda = SIOD_GPIO_NUM;
+    cam.pin_sscb_scl = SIOC_GPIO_NUM;
+    cam.pin_pwdn = PWDN_GPIO_NUM;
+    cam.pin_reset = RESET_GPIO_NUM;
+    cam.xclk_freq_hz = 20000000;
+    cam.pixel_format = PIXFORMAT_JPEG;
+
+
+    cam.frame_size = (framesize_t)mySettings.frameSize;
+    cam.jpeg_quality = 10;
+    cam.fb_count = 2;
+
+    // camera init
+    esp_err_t err = esp_camera_init(&cam);
+    if (err != ESP_OK) {
+      sprintf_P(logBuff, PSTR("Camera init failed with error 0x%x"), err);
+      recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
+      reboot();
+    }
+
     camera_fb_t * fb = NULL;
     fb = esp_camera_fb_get();
 
     if (!fb) {
       sprintf_P(logBuff, PSTR("Camera capture failed."));
       recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
+      reboot();
     }
     else
     {
@@ -270,7 +291,7 @@ void myTask()
       esp_camera_fb_return(fb);
 
       SpiRamJsonDocument doc(size + 64);
-      doc["b64"] = String(buffer).c_str();
+      doc["b64"] = buffer;
       free(buffer);
       doc["w"] = fb->width;
       doc["h"] = fb->height;
@@ -284,7 +305,7 @@ void myTask()
       tb.beginPublish("v1/devices/me/telemetry", finalDataSize, 0);
       for(int i=0;i<finalDataSize;i++){
         float progress = ((float)i+1.0) / (float)(finalDataSize) * 100.0;
-        sprintf_P(logBuff, PSTR("Sending chunk of captured data %d/%d: (%.2f %%)"), i+1, finalDataSize, progress);
+        sprintf_P(logBuff, PSTR("Chunk %d/%d: (%.2f %%) - %d/%d - %d"), i+1, finalDataSize, progress, heap_caps_get_free_size(MALLOC_CAP_32BIT), ESP.getPsramSize(), ESP.getFreeHeap());
         Serial.print(data[i]);
         Serial.print(" - ");
         Serial.println(logBuff);
