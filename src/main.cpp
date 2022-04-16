@@ -102,6 +102,15 @@ void loadSettings()
     mySettings.frameSize = 1;
   }
 
+  if(doc["jpegQuality"] != nullptr)
+  {
+    mySettings.jpegQuality = doc["jpegQuality"].as<int>();
+  }
+  else
+  {
+    mySettings.jpegQuality = 10;
+  }
+
 }
 
 void saveSettings()
@@ -111,6 +120,7 @@ void saveSettings()
   doc["fTeleDev"] = mySettings.fTeleDev;
   doc["myTaskInterval"] = mySettings.myTaskInterval;
   doc["frameSize"] = mySettings.frameSize;
+  doc["jpegQuality"] = mySettings.jpegQuality;
 
   writeSettings(doc, settingsPath);
 }
@@ -150,8 +160,8 @@ callbackResponse processSyncClientAttributes(const callbackData &data)
 
 callbackResponse processSharedAttributesUpdate(const callbackData &data)
 {
-  sprintf_P(logBuff, PSTR("Received shared attributes update:"));
-  recordLog(5, PSTR(__FILE__), __LINE__, PSTR(__func__));
+  //sprintf_P(logBuff, PSTR("Received shared attributes update:"));
+  //recordLog(5, PSTR(__FILE__), __LINE__, PSTR(__func__));
   if(config.logLev >= 4){serializeJsonPretty(data, Serial);}
 
   if(data["model"] != nullptr){strlcpy(config.model, data["model"].as<const char*>(), sizeof(config.model));}
@@ -170,6 +180,7 @@ callbackResponse processSharedAttributesUpdate(const callbackData &data)
   if(data["fTeleDev"] != nullptr){mySettings.fTeleDev = data["fTeleDev"].as<bool>();}
   if(data["myTaskInterval"] != nullptr){mySettings.myTaskInterval = data["myTaskInterval"].as<unsigned long>();}
   if(data["frameSize"] != nullptr){mySettings.frameSize = data["frameSize"].as<uint8_t>();}
+  if(data["jpegQuality"] != nullptr){mySettings.jpegQuality = data["jpegQuality"].as<int>();}
 
   mySettings.lastUpdated = millis();
   return callbackResponse("sharedAttributesUpdate", 1);
@@ -214,6 +225,7 @@ void syncClientAttributes()
   doc["fTeleDev"] = mySettings.fTeleDev;
   doc["myTaskInterval"] = mySettings.myTaskInterval;
   doc["frameSize"] = mySettings.frameSize;
+  doc["jpegQuality"] = mySettings.jpegQuality;
 
   tb.sendAttributeDoc(doc);
   doc.clear();
@@ -269,6 +281,7 @@ void myTask()
       recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
       reboot();
     }
+    delay(3000);
 
     camera_fb_t * fb = NULL;
     fb = esp_camera_fb_get();
@@ -302,10 +315,9 @@ void myTask()
       serializeJson(doc, data, finalDataSize);
       doc.clear();
 
-      sprintf_P(logBuff, PSTR("Total size %d:  - %d/%d - %d"), finalDataSize, heap_caps_get_free_size(MALLOC_CAP_32BIT), ESP.getPsramSize(), ESP.getFreeHeap());
+      unsigned long start = millis();
+      sprintf_P(logBuff, PSTR("Snap size %d.  Memory: %d/%d - %d"), finalDataSize, heap_caps_get_free_size(MALLOC_CAP_32BIT), ESP.getPsramSize(), ESP.getFreeHeap());
       recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
-
-      iotSendLog();
 
       tb.beginPublish("v1/devices/me/telemetry", finalDataSize, 0);
       for(int i=0;i<finalDataSize;i++){
@@ -313,6 +325,9 @@ void myTask()
         tb.write(data[i]);
       }
       tb.endPublish();
+
+      sprintf_P(logBuff, PSTR("Snap finished in %d sec.  Memory: %d/%d - %d"), (int)((millis() - start) / 1000), heap_caps_get_free_size(MALLOC_CAP_32BIT), ESP.getPsramSize(), ESP.getFreeHeap());
+      recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
     }
   }
 }

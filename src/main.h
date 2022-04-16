@@ -88,6 +88,7 @@ struct Settings
     unsigned long publishInterval;
     unsigned long myTaskInterval;
     uint8_t frameSize;
+    int jpegQuality;
 };
 
 struct SpiRamAllocator {
