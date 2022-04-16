@@ -111,6 +111,15 @@ void loadSettings()
     mySettings.jpegQuality = 10;
   }
 
+  if(doc["tempBuffSize"] != nullptr)
+  {
+    mySettings.tempBuffSize = doc["tempBuffSize"].as<int>();
+  }
+  else
+  {
+    mySettings.tempBuffSize = 64;
+  }
+
 }
 
 void saveSettings()
@@ -121,6 +130,7 @@ void saveSettings()
   doc["myTaskInterval"] = mySettings.myTaskInterval;
   doc["frameSize"] = mySettings.frameSize;
   doc["jpegQuality"] = mySettings.jpegQuality;
+  doc["tempBuffSize"] = mySettings.tempBuffSize;
 
   writeSettings(doc, settingsPath);
 }
@@ -181,6 +191,7 @@ callbackResponse processSharedAttributesUpdate(const callbackData &data)
   if(data["myTaskInterval"] != nullptr){mySettings.myTaskInterval = data["myTaskInterval"].as<unsigned long>();}
   if(data["frameSize"] != nullptr){mySettings.frameSize = data["frameSize"].as<uint8_t>();}
   if(data["jpegQuality"] != nullptr){mySettings.jpegQuality = data["jpegQuality"].as<int>();}
+  if(data["tempBuffSize"] != nullptr){mySettings.tempBuffSize = data["tempBuffSize"].as<uint16_t>();}
 
   mySettings.lastUpdated = millis();
   return callbackResponse("sharedAttributesUpdate", 1);
@@ -226,6 +237,7 @@ void syncClientAttributes()
   doc["myTaskInterval"] = mySettings.myTaskInterval;
   doc["frameSize"] = mySettings.frameSize;
   doc["jpegQuality"] = mySettings.jpegQuality;
+  doc["tempBuffSize"] = mySettings.tempBuffSize;
 
   tb.sendAttributeDoc(doc);
   doc.clear();
@@ -246,6 +258,8 @@ void myTask()
 {
   if(tb.connected())
   {
+    sprintf_P(logBuff, PSTR("Taking snap, please wait."));
+    recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
     camera_config_t cam;
     cam.ledc_channel = LEDC_CHANNEL_0;
@@ -311,23 +325,38 @@ void myTask()
       doc["f"] = fb->format;
 
       size_t finalDataSize = measureJson(doc);
-      char * data = (char *) ps_malloc(finalDataSize);
+      byte * data = (byte *) ps_malloc(finalDataSize);
       serializeJson(doc, data, finalDataSize);
       doc.clear();
-
-      unsigned long start = millis();
-      sprintf_P(logBuff, PSTR("Snap size %d.  Memory: %d/%d - %d"), finalDataSize, heap_caps_get_free_size(MALLOC_CAP_32BIT), ESP.getPsramSize(), ESP.getFreeHeap());
-      recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
-
-      tb.beginPublish("v1/devices/me/telemetry", finalDataSize, 0);
-      for(int i=0;i<finalDataSize;i++){
-        //float progress = ((float)i+1.0) / (float)(finalDataSize) * 100.0;
-        tb.write(data[i]);
-      }
-      tb.endPublish();
-
-      sprintf_P(logBuff, PSTR("Snap finished in %d sec.  Memory: %d/%d - %d"), (int)((millis() - start) / 1000), heap_caps_get_free_size(MALLOC_CAP_32BIT), ESP.getPsramSize(), ESP.getFreeHeap());
-      recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
+      const char* topic = "v1/devices/me/telemetry";
+      publishMqtt(topic, data, finalDataSize);
+      free(data);
     }
   }
+}
+
+void publishMqtt(const char* channel, uint8_t *data, uint32_t len) {
+  unsigned long start_ts = millis();
+
+  tb.beginPublish(channel, len, false);
+
+  size_t res;
+  uint32_t offset = 0;
+  uint32_t to_write = len;
+  uint32_t buf_len;
+  do {
+    buf_len = to_write;
+    if (buf_len > mySettings.tempBuffSize)
+      buf_len = mySettings.tempBuffSize;
+
+    res = tb.write(data+offset, buf_len);
+
+    offset += buf_len;
+    to_write -= buf_len;
+  } while (res == buf_len && to_write > 0);
+
+  tb.endPublish();
+
+  sprintf_P(logBuff, PSTR("Finished: (size %d bytes, %d bytes written in %ld ms)\n"), len, len-to_write, millis()-start_ts);
+  recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
 }

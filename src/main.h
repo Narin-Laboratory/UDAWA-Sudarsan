@@ -89,6 +89,7 @@ struct Settings
     unsigned long myTaskInterval;
     uint8_t frameSize;
     int jpegQuality;
+    uint16_t tempBuffSize;
 };
 
 struct SpiRamAllocator {
@@ -118,5 +119,5 @@ void saveSettings();
 void syncClientAttributes();
 void publishDeviceTelemetry();
 void myTask();
-
+void publishMqtt(const char* channel, uint8_t *data, uint32_t len);
 #endif
