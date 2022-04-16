@@ -302,13 +302,14 @@ void myTask()
       serializeJson(doc, data, finalDataSize);
       doc.clear();
 
+      sprintf_P(logBuff, PSTR("Total size %d:  - %d/%d - %d"), finalDataSize, heap_caps_get_free_size(MALLOC_CAP_32BIT), ESP.getPsramSize(), ESP.getFreeHeap());
+      recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
+
+      iotSendLog();
+
       tb.beginPublish("v1/devices/me/telemetry", finalDataSize, 0);
       for(int i=0;i<finalDataSize;i++){
-        float progress = ((float)i+1.0) / (float)(finalDataSize) * 100.0;
-        sprintf_P(logBuff, PSTR("Chunk %d/%d: (%.2f %%) - %d/%d - %d"), i+1, finalDataSize, progress, heap_caps_get_free_size(MALLOC_CAP_32BIT), ESP.getPsramSize(), ESP.getFreeHeap());
-        Serial.print(data[i]);
-        Serial.print(" - ");
-        Serial.println(logBuff);
+        //float progress = ((float)i+1.0) / (float)(finalDataSize) * 100.0;
         tb.write(data[i]);
       }
       tb.endPublish();
