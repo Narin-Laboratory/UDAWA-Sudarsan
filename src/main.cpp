@@ -90,7 +90,7 @@ void loadSettings()
   }
   else
   {
-    mySettings.myTaskInterval = 30000;
+    mySettings.myTaskInterval = 900000;
   }
 
   if(doc["frameSize"] != nullptr)
