@@ -9,58 +9,25 @@
 
 Settings mySettings;
 
-const size_t callbacksSize = 6;
+const size_t callbacksSize = 7;
 GenericCallback callbacks[callbacksSize] = {
   { "sharedAttributesUpdate", processSharedAttributesUpdate },
   { "provisionResponse", processProvisionResponse },
   { "saveConfig", processSaveConfig },
   { "saveSettings", processSaveSettings },
   { "syncClientAttributes", processSyncClientAttributes },
-  { "reboot", processReboot }
+  { "reboot", processReboot },
+  { "snap", processSnap }
 };
 
 void setup()
 {
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
   startup();
   loadSettings();
 
-  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
-  camera_config_t config;
-  config.ledc_channel = LEDC_CHANNEL_0;
-  config.ledc_timer = LEDC_TIMER_0;
-  config.pin_d0 = Y2_GPIO_NUM;
-  config.pin_d1 = Y3_GPIO_NUM;
-  config.pin_d2 = Y4_GPIO_NUM;
-  config.pin_d3 = Y5_GPIO_NUM;
-  config.pin_d4 = Y6_GPIO_NUM;
-  config.pin_d5 = Y7_GPIO_NUM;
-  config.pin_d6 = Y8_GPIO_NUM;
-  config.pin_d7 = Y9_GPIO_NUM;
-  config.pin_xclk = XCLK_GPIO_NUM;
-  config.pin_pclk = PCLK_GPIO_NUM;
-  config.pin_vsync = VSYNC_GPIO_NUM;
-  config.pin_href = HREF_GPIO_NUM;
-  config.pin_sscb_sda = SIOD_GPIO_NUM;
-  config.pin_sscb_scl = SIOC_GPIO_NUM;
-  config.pin_pwdn = PWDN_GPIO_NUM;
-  config.pin_reset = RESET_GPIO_NUM;
-  config.xclk_freq_hz = 20000000;
-  config.pixel_format = PIXFORMAT_JPEG;
-
-
-  config.frame_size = FRAMESIZE_QVGA;
-  config.jpeg_quality = 10;
-  config.fb_count = 2;
-
-  // camera init
-  esp_err_t err = esp_camera_init(&config);
-  if (err != ESP_OK) {
-    sprintf_P(logBuff, PSTR("Camera init failed with error 0x%x"), err);
-    recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
-  }
-
-  delay(3000);
   networkInit();
+  tb.setBufferSize(DOCSIZE);
 
   if(mySettings.fTeleDev)
   {
@@ -69,9 +36,11 @@ void setup()
     });
   }
 
-  taskManager.scheduleFixedRate(mySettings.myTaskInterval, [] {
-    myTask();
-  });
+  if(mySettings.myTaskInterval > 0){
+    taskManager.scheduleFixedRate(mySettings.myTaskInterval * 1000, [] {
+      myTask();
+    });
+  }
 }
 
 void loop()
@@ -122,7 +91,34 @@ void loadSettings()
   }
   else
   {
-    mySettings.myTaskInterval = 30000;
+    mySettings.myTaskInterval = 900000;
+  }
+
+  if(doc["frameSize"] != nullptr)
+  {
+    mySettings.frameSize = doc["frameSize"].as<uint8_t>();
+  }
+  else
+  {
+    mySettings.frameSize = 1;
+  }
+
+  if(doc["jpegQuality"] != nullptr)
+  {
+    mySettings.jpegQuality = doc["jpegQuality"].as<int>();
+  }
+  else
+  {
+    mySettings.jpegQuality = 10;
+  }
+
+  if(doc["tempBuffSize"] != nullptr)
+  {
+    mySettings.tempBuffSize = doc["tempBuffSize"].as<int>();
+  }
+  else
+  {
+    mySettings.tempBuffSize = 64;
   }
 
 }
@@ -133,7 +129,9 @@ void saveSettings()
 
   doc["fTeleDev"] = mySettings.fTeleDev;
   doc["myTaskInterval"] = mySettings.myTaskInterval;
-
+  doc["frameSize"] = mySettings.frameSize;
+  doc["jpegQuality"] = mySettings.jpegQuality;
+  doc["tempBuffSize"] = mySettings.tempBuffSize;
 
   writeSettings(doc, settingsPath);
 }
@@ -159,6 +157,12 @@ callbackResponse processReboot(const callbackData &data)
   return callbackResponse("reboot", 1);
 }
 
+callbackResponse processSnap(const callbackData &data)
+{
+  myTask();
+  return callbackResponse("snap", 1);
+}
+
 callbackResponse processSyncClientAttributes(const callbackData &data)
 {
   syncClientAttributes();
@@ -167,8 +171,8 @@ callbackResponse processSyncClientAttributes(const callbackData &data)
 
 callbackResponse processSharedAttributesUpdate(const callbackData &data)
 {
-  sprintf_P(logBuff, PSTR("Received shared attributes update:"));
-  recordLog(5, PSTR(__FILE__), __LINE__, PSTR(__func__));
+  //sprintf_P(logBuff, PSTR("Received shared attributes update:"));
+  //recordLog(5, PSTR(__FILE__), __LINE__, PSTR(__func__));
   if(config.logLev >= 4){serializeJsonPretty(data, Serial);}
 
   if(data["model"] != nullptr){strlcpy(config.model, data["model"].as<const char*>(), sizeof(config.model));}
@@ -186,6 +190,9 @@ callbackResponse processSharedAttributesUpdate(const callbackData &data)
 
   if(data["fTeleDev"] != nullptr){mySettings.fTeleDev = data["fTeleDev"].as<bool>();}
   if(data["myTaskInterval"] != nullptr){mySettings.myTaskInterval = data["myTaskInterval"].as<unsigned long>();}
+  if(data["frameSize"] != nullptr){mySettings.frameSize = data["frameSize"].as<uint8_t>();}
+  if(data["jpegQuality"] != nullptr){mySettings.jpegQuality = data["jpegQuality"].as<int>();}
+  if(data["tempBuffSize"] != nullptr){mySettings.tempBuffSize = data["tempBuffSize"].as<uint16_t>();}
 
   mySettings.lastUpdated = millis();
   return callbackResponse("sharedAttributesUpdate", 1);
@@ -229,6 +236,9 @@ void syncClientAttributes()
   doc["logLev"] = config.logLev;
   doc["fTeleDev"] = mySettings.fTeleDev;
   doc["myTaskInterval"] = mySettings.myTaskInterval;
+  doc["frameSize"] = mySettings.frameSize;
+  doc["jpegQuality"] = mySettings.jpegQuality;
+  doc["tempBuffSize"] = mySettings.tempBuffSize;
 
   tb.sendAttributeDoc(doc);
   doc.clear();
@@ -247,9 +257,43 @@ void publishDeviceTelemetry()
 
 void myTask()
 {
-  //if(tb.connected())
-  if(true)
+  if(tb.connected())
   {
+    camera_config_t cam;
+    cam.ledc_channel = LEDC_CHANNEL_0;
+    cam.ledc_timer = LEDC_TIMER_0;
+    cam.pin_d0 = Y2_GPIO_NUM;
+    cam.pin_d1 = Y3_GPIO_NUM;
+    cam.pin_d2 = Y4_GPIO_NUM;
+    cam.pin_d3 = Y5_GPIO_NUM;
+    cam.pin_d4 = Y6_GPIO_NUM;
+    cam.pin_d5 = Y7_GPIO_NUM;
+    cam.pin_d6 = Y8_GPIO_NUM;
+    cam.pin_d7 = Y9_GPIO_NUM;
+    cam.pin_xclk = XCLK_GPIO_NUM;
+    cam.pin_pclk = PCLK_GPIO_NUM;
+    cam.pin_vsync = VSYNC_GPIO_NUM;
+    cam.pin_href = HREF_GPIO_NUM;
+    cam.pin_sscb_sda = SIOD_GPIO_NUM;
+    cam.pin_sscb_scl = SIOC_GPIO_NUM;
+    cam.pin_pwdn = PWDN_GPIO_NUM;
+    cam.pin_reset = RESET_GPIO_NUM;
+    cam.xclk_freq_hz = 20000000;
+    cam.pixel_format = PIXFORMAT_JPEG;
+    cam.fb_count = 2;
+    cam.frame_size = (framesize_t)mySettings.frameSize;
+    cam.jpeg_quality = mySettings.jpegQuality;
+
+    sprintf_P(logBuff, PSTR("Taking snap (jpegQuality: %d, frameSize: %d), please wait."), cam.jpeg_quality, (int)cam.frame_size);
+    recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
+
+    // camera init
+    esp_err_t err = esp_camera_init(&cam);
+    if (err != ESP_OK) {
+      sprintf_P(logBuff, PSTR("Camera init failed with error 0x%x"), err);
+      recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
+      esp_camera_deinit();
+    }
     camera_fb_t * fb = NULL;
     fb = esp_camera_fb_get();
 
@@ -268,29 +312,51 @@ void myTask()
         len = base64_encode_blockend((buffer + len), &_state);
       }
       esp_camera_fb_return(fb);
+      esp_camera_deinit();
 
       SpiRamJsonDocument doc(size + 64);
-      doc["b64"] = String(buffer).c_str();
+      doc["b64"] = buffer;
       free(buffer);
       doc["w"] = fb->width;
       doc["h"] = fb->height;
       doc["f"] = fb->format;
 
-      size_t dataSize = size + 64;
-      char * data = (char *) ps_malloc(dataSize);
-      size_t finalDataSize = serializeJson(doc, data, dataSize);
+      size_t finalDataSize = measureJson(doc);
+      byte * data = (byte *) ps_malloc(finalDataSize);
+      serializeJson(doc, data, finalDataSize);
       doc.clear();
 
-      size_t targetBufferSize = finalDataSize + 64;
-      bool setBufferSizeStatus = tb.setBufferSize(targetBufferSize);
-      bool deliveryStatus = tb.sendTelemetryJson(data);
-      int freeHeap = (int)heap_caps_get_free_size(MALLOC_CAP_8BIT)/(int)8;
-      sprintf_P(logBuff, PSTR("size: %d - buf: %d vs %d (%d) vs %d - sent: %d"),
-        finalDataSize, targetBufferSize, tb.getBufferSize(),
-        (int)setBufferSizeStatus, freeHeap, (int)deliveryStatus);
-      recordLog(5, PSTR(__FILE__), __LINE__, PSTR(__func__));
-      tb.setBufferSize(DOCSIZE);
+      sprintf_P(logBuff, PSTR("Snap size %d.  Memory: %d/%d - %d. Sending now..."), finalDataSize, heap_caps_get_free_size(MALLOC_CAP_32BIT), ESP.getPsramSize(), ESP.getFreeHeap());
+      recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
+
+      const char* topic = "v1/devices/me/telemetry";
+      publishMqtt(topic, data, finalDataSize);
       free(data);
     }
   }
+}
+
+void publishMqtt(const char* channel, uint8_t *data, uint32_t len) {
+  unsigned long start_ts = millis();
+
+  tb.beginPublish(channel, len, false);
+
+  size_t res;
+  uint32_t offset = 0;
+  uint32_t to_write = len;
+  uint32_t buf_len;
+  do {
+    buf_len = to_write;
+    if (buf_len > mySettings.tempBuffSize){
+      buf_len = mySettings.tempBuffSize;
+    }
+    res = tb.write(data+offset, buf_len);
+    offset += buf_len;
+    to_write -= buf_len;
+  } while (res == buf_len && to_write > 0);
+
+  tb.endPublish();
+
+  sprintf_P(logBuff, PSTR("Finished: (size %d bytes, %d bytes written in %ld ms)\n"), len, len-to_write, millis()-start_ts);
+  recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
 }
