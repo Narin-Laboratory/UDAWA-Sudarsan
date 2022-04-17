@@ -282,10 +282,8 @@ void myTask()
     cam.pin_reset = RESET_GPIO_NUM;
     cam.xclk_freq_hz = 20000000;
     cam.pixel_format = PIXFORMAT_JPEG;
-
-
     cam.frame_size = (framesize_t)mySettings.frameSize;
-    cam.jpeg_quality = 10;
+    cam.jpeg_quality = mySettings.jpegQuality;
     cam.fb_count = 2;
 
     // camera init
@@ -293,17 +291,13 @@ void myTask()
     if (err != ESP_OK) {
       sprintf_P(logBuff, PSTR("Camera init failed with error 0x%x"), err);
       recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
-      reboot();
     }
-    delay(3000);
-
     camera_fb_t * fb = NULL;
     fb = esp_camera_fb_get();
 
     if (!fb) {
       sprintf_P(logBuff, PSTR("Camera capture failed."));
       recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
-      reboot();
     }
     else
     {
@@ -346,11 +340,10 @@ void publishMqtt(const char* channel, uint8_t *data, uint32_t len) {
   uint32_t buf_len;
   do {
     buf_len = to_write;
-    if (buf_len > mySettings.tempBuffSize)
+    if (buf_len > mySettings.tempBuffSize){
       buf_len = mySettings.tempBuffSize;
-
+    }
     res = tb.write(data+offset, buf_len);
-
     offset += buf_len;
     to_write -= buf_len;
   } while (res == buf_len && to_write > 0);
