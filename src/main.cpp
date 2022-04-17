@@ -36,7 +36,7 @@ void setup()
   }
 
   if(mySettings.myTaskInterval > 0){
-    taskManager.scheduleFixedRate(mySettings.myTaskInterval, [] {
+    taskManager.scheduleFixedRate(mySettings.myTaskInterval * 1000, [] {
       myTask();
     });
   }
