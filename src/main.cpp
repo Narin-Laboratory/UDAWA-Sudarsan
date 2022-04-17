@@ -22,6 +22,7 @@ GenericCallback callbacks[callbacksSize] = {
 
 void setup()
 {
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
   startup();
   loadSettings();
 
@@ -258,9 +259,6 @@ void myTask()
 {
   if(tb.connected())
   {
-    sprintf_P(logBuff, PSTR("Taking snap, please wait."));
-    recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
-    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
     camera_config_t cam;
     cam.ledc_channel = LEDC_CHANNEL_0;
     cam.ledc_timer = LEDC_TIMER_0;
@@ -282,15 +280,19 @@ void myTask()
     cam.pin_reset = RESET_GPIO_NUM;
     cam.xclk_freq_hz = 20000000;
     cam.pixel_format = PIXFORMAT_JPEG;
+    cam.fb_count = 2;
     cam.frame_size = (framesize_t)mySettings.frameSize;
     cam.jpeg_quality = mySettings.jpegQuality;
-    cam.fb_count = 2;
+
+    sprintf_P(logBuff, PSTR("Taking snap (jpegQuality: %d, frameSize: %d), please wait."), cam.jpeg_quality, (int)cam.frame_size);
+    recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
 
     // camera init
     esp_err_t err = esp_camera_init(&cam);
     if (err != ESP_OK) {
       sprintf_P(logBuff, PSTR("Camera init failed with error 0x%x"), err);
       recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
+      esp_camera_deinit();
     }
     camera_fb_t * fb = NULL;
     fb = esp_camera_fb_get();
@@ -310,6 +312,7 @@ void myTask()
         len = base64_encode_blockend((buffer + len), &_state);
       }
       esp_camera_fb_return(fb);
+      esp_camera_deinit();
 
       SpiRamJsonDocument doc(size + 64);
       doc["b64"] = buffer;
@@ -322,6 +325,10 @@ void myTask()
       byte * data = (byte *) ps_malloc(finalDataSize);
       serializeJson(doc, data, finalDataSize);
       doc.clear();
+
+      sprintf_P(logBuff, PSTR("Snap size %d.  Memory: %d/%d - %d. Sending now..."), finalDataSize, heap_caps_get_free_size(MALLOC_CAP_32BIT), ESP.getPsramSize(), ESP.getFreeHeap());
+      recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
+
       const char* topic = "v1/devices/me/telemetry";
       publishMqtt(topic, data, finalDataSize);
       free(data);
