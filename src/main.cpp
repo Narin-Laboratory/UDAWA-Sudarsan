@@ -294,6 +294,7 @@ void myTask()
       recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
       esp_camera_deinit();
     }
+    delay(5000);
     camera_fb_t * fb = NULL;
     fb = esp_camera_fb_get();
 
