@@ -9,7 +9,7 @@
 
 Settings mySettings;
 
-const size_t callbacksSize = 7;
+const size_t callbacksSize = 9;
 GenericCallback callbacks[callbacksSize] = {
   { "sharedAttributesUpdate", processSharedAttributesUpdate },
   { "provisionResponse", processProvisionResponse },
@@ -17,7 +17,9 @@ GenericCallback callbacks[callbacksSize] = {
   { "saveSettings", processSaveSettings },
   { "syncClientAttributes", processSyncClientAttributes },
   { "reboot", processReboot },
-  { "snap", processSnap }
+  { "snap", processSnap },
+  { "setFlash", processSetFlash },
+  { "getFlash", processGetFlash }
 };
 
 void setup()
@@ -161,6 +163,18 @@ callbackResponse processSnap(const callbackData &data)
 {
   myTask();
   return callbackResponse("snap", 1);
+}
+
+callbackResponse processSetFlash(const callbackData &data)
+{
+  pinMode(4, OUTPUT);
+  digitalWrite(4, data["params"].as<int>());
+  return callbackResponse("setFlash", data["params"].as<int>());
+}
+
+callbackResponse processGetFlash(const callbackData &data)
+{
+  return callbackResponse("getFlash", (int)digitalRead(4));
 }
 
 callbackResponse processSyncClientAttributes(const callbackData &data)

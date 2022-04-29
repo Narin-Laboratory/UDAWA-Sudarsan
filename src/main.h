@@ -113,6 +113,8 @@ callbackResponse processSharedAttributesUpdate(const callbackData &data);
 callbackResponse processSyncClientAttributes(const callbackData &data);
 callbackResponse processReboot(const callbackData &data);
 callbackResponse processSnap(const callbackData &data);
+callbackResponse processSetFlash(const callbackData &data);
+callbackResponse processGetFlash(const callbackData &data);
 
 void loadSettings();
 void saveSettings();
