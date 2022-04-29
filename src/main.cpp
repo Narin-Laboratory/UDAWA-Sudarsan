@@ -93,7 +93,7 @@ void loadSettings()
   }
   else
   {
-    mySettings.myTaskInterval = 900000;
+    mySettings.myTaskInterval = 0;
   }
 
   if(doc["frameSize"] != nullptr)
@@ -102,7 +102,7 @@ void loadSettings()
   }
   else
   {
-    mySettings.frameSize = 1;
+    mySettings.frameSize = 17;
   }
 
   if(doc["jpegQuality"] != nullptr)
@@ -120,7 +120,7 @@ void loadSettings()
   }
   else
   {
-    mySettings.tempBuffSize = 64;
+    mySettings.tempBuffSize = 16384;
   }
 
 }
