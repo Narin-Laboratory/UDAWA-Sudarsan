@@ -326,15 +326,18 @@ void myTask()
         int len = base64_encode_block((const char *) &fb->buf[0], fb->len, &buffer[0], &_state);
         len = base64_encode_blockend((buffer + len), &_state);
       }
+      size_t w = fb->width;
+      size_t h = fb->height;
+      pixformat_t f = fb->format;
       esp_camera_fb_return(fb);
       esp_camera_deinit();
 
       SpiRamJsonDocument doc(size + 64);
       doc["b64"] = buffer;
       free(buffer);
-      doc["w"] = fb->width;
-      doc["h"] = fb->height;
-      doc["f"] = fb->format;
+      doc["w"] = w;
+      doc["h"] = h;
+      doc["f"] = f;
 
       size_t finalDataSize = measureJson(doc);
       byte * data = (byte *) ps_malloc(finalDataSize);
