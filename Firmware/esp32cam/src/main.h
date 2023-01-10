@@ -7,14 +7,7 @@
 **/
 #ifndef main_h
 #define main_h
-
-#define DOCSIZE 768
-#include <TaskManagerIO.h>
-#include "soc/soc.h"
-#include "soc/rtc_cntl_reg.h"
-#include "esp_camera.h"
-#include <libb64/cencode.h>
-
+#include <Arduino.h>
 static const char* CA_CERT PROGMEM = R"EOF(
 -----BEGIN CERTIFICATE-----
 MIIGSjCCBDKgAwIBAgIJAMxU3KljbiooMA0GCSqGSIb3DQEBCwUAMIGwMQswCQYD
@@ -54,7 +47,12 @@ ny6l9/duT2POAsUN5IwHGDu8b2NT+vCUQRFVHY31
 -----END CERTIFICATE-----
 )EOF";
 
+#define DOCSIZE 1024
 #include <libudawa.h>
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
+#include "esp_camera.h"
+#include <libb64/cencode.h>
 
 #define CURRENT_FIRMWARE_TITLE "UDAWA-Sudarsan"
 #define CURRENT_FIRMWARE_VERSION "0.0.1"

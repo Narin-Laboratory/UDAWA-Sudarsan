@@ -7,6 +7,7 @@
 **/
 #include "main.h"
 
+using namespace libudawa;
 Settings mySettings;
 
 const size_t callbacksSize = 9;
@@ -53,20 +54,17 @@ void loop()
   {
     if(tb.callbackSubscribe(callbacks, callbacksSize))
     {
-      sprintf_P(logBuff, PSTR("Callbacks subscribed successfuly!"));
-      recordLog(4, PSTR(__FILE__), __LINE__, PSTR(__func__));
+      log_manager->info(PSTR(__func__),PSTR("Callbacks subscribed successfuly!"));
       FLAG_IOT_SUBSCRIBE = false;
     }
     if (tb.Firmware_Update(CURRENT_FIRMWARE_TITLE, CURRENT_FIRMWARE_VERSION))
     {
-      sprintf_P(logBuff, PSTR("OTA Update finished, rebooting..."));
-      recordLog(5, PSTR(__FILE__), __LINE__, PSTR(__func__));
+      log_manager->info(PSTR(__func__),PSTR("OTA Update finished, rebooting..."));
       reboot();
     }
     else
     {
-      sprintf_P(logBuff, PSTR("Firmware up-to-date."));
-      recordLog(5, PSTR(__FILE__), __LINE__, PSTR(__func__));
+      log_manager->info(PSTR(__func__),PSTR("Firmware up-to-date."));
     }
 
     syncClientAttributes();
@@ -185,7 +183,7 @@ callbackResponse processSyncClientAttributes(const callbackData &data)
 
 callbackResponse processSharedAttributesUpdate(const callbackData &data)
 {
-  //sprintf_P(logBuff, PSTR("Received shared attributes update:"));
+  //log_manager->debug(PSTR(__func__),PSTR("Received shared attributes update:"));
   //recordLog(5, PSTR(__FILE__), __LINE__, PSTR(__func__));
   if(config.logLev >= 4){serializeJsonPretty(data, Serial);}
 
@@ -201,6 +199,7 @@ callbackResponse processSharedAttributesUpdate(const callbackData &data)
   if(data["provisionDeviceKey"] != nullptr){strlcpy(config.provisionDeviceKey, data["provisionDeviceKey"].as<const char*>(), sizeof(config.provisionDeviceKey));}
   if(data["provisionDeviceSecret"] != nullptr){strlcpy(config.provisionDeviceSecret, data["provisionDeviceSecret"].as<const char*>(), sizeof(config.provisionDeviceSecret));}
   if(data["logLev"] != nullptr){config.logLev = data["logLev"].as<uint8_t>();}
+  if(data["gmtOffset"] != nullptr){config.gmtOffset = data["gmtOffset"].as<int>();}
 
   if(data["fTeleDev"] != nullptr){mySettings.fTeleDev = data["fTeleDev"].as<bool>();}
   if(data["myTaskInterval"] != nullptr){mySettings.myTaskInterval = data["myTaskInterval"].as<unsigned long>();}
@@ -247,13 +246,15 @@ void syncClientAttributes()
   doc["accessToken"] = config.accessToken;
   doc["provisionDeviceKey"] = config.provisionDeviceKey;
   doc["provisionDeviceSecret"] = config.provisionDeviceSecret;
+  tb.sendAttributeDoc(doc);
+  doc.clear();
   doc["logLev"] = config.logLev;
+  doc["gmtOffset"] = config.gmtOffset;
   doc["fTeleDev"] = mySettings.fTeleDev;
   doc["myTaskInterval"] = mySettings.myTaskInterval;
   doc["frameSize"] = mySettings.frameSize;
   doc["jpegQuality"] = mySettings.jpegQuality;
   doc["tempBuffSize"] = mySettings.tempBuffSize;
-
   tb.sendAttributeDoc(doc);
   doc.clear();
 }
@@ -288,8 +289,8 @@ void myTask()
     cam.pin_pclk = PCLK_GPIO_NUM;
     cam.pin_vsync = VSYNC_GPIO_NUM;
     cam.pin_href = HREF_GPIO_NUM;
-    cam.pin_sscb_sda = SIOD_GPIO_NUM;
-    cam.pin_sscb_scl = SIOC_GPIO_NUM;
+    cam.pin_sccb_sda = SIOD_GPIO_NUM;
+    cam.pin_sccb_scl = SIOC_GPIO_NUM;
     cam.pin_pwdn = PWDN_GPIO_NUM;
     cam.pin_reset = RESET_GPIO_NUM;
     cam.xclk_freq_hz = 20000000;
@@ -298,14 +299,12 @@ void myTask()
     cam.frame_size = (framesize_t)mySettings.frameSize;
     cam.jpeg_quality = mySettings.jpegQuality;
 
-    sprintf_P(logBuff, PSTR("Taking snap (jpegQuality: %d, frameSize: %d), please wait."), cam.jpeg_quality, (int)cam.frame_size);
-    recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
+    log_manager->debug(PSTR(__func__),PSTR("Taking snap (jpegQuality: %d, frameSize: %d), please wait."), cam.jpeg_quality, (int)cam.frame_size);
 
     // camera init
     esp_err_t err = esp_camera_init(&cam);
     if (err != ESP_OK) {
-      sprintf_P(logBuff, PSTR("Camera init failed with error 0x%x"), err);
-      recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
+      log_manager->error(PSTR(__func__),PSTR("Camera init failed with error 0x%x"), err);
       esp_camera_deinit();
     }
     delay(5000);
@@ -313,8 +312,7 @@ void myTask()
     fb = esp_camera_fb_get();
 
     if (!fb) {
-      sprintf_P(logBuff, PSTR("Camera capture failed."));
-      recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
+      log_manager->error(PSTR(__func__),PSTR("Camera capture failed."));
     }
     else
     {
@@ -344,10 +342,9 @@ void myTask()
       serializeJson(doc, data, finalDataSize);
       doc.clear();
 
-      sprintf_P(logBuff, PSTR("Snap size %d.  Memory: %d/%d - %d. Sending now..."), finalDataSize, heap_caps_get_free_size(MALLOC_CAP_32BIT), ESP.getPsramSize(), ESP.getFreeHeap());
-      recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
+      log_manager->debug(PSTR(__func__),PSTR("Snap size %d.  Memory: %d/%d - %d. Sending now..."), finalDataSize, heap_caps_get_free_size(MALLOC_CAP_32BIT), ESP.getPsramSize(), ESP.getFreeHeap());
 
-      const char* topic = "v1/devices/me/telemetry";
+      const char* topic = "v1/devices/me/attributes";
       publishMqtt(topic, data, finalDataSize);
       free(data);
     }
@@ -375,6 +372,5 @@ void publishMqtt(const char* channel, uint8_t *data, uint32_t len) {
 
   tb.endPublish();
 
-  sprintf_P(logBuff, PSTR("Finished: (size %d bytes, %d bytes written in %ld ms)\n"), len, len-to_write, millis()-start_ts);
-  recordLog(1, PSTR(__FILE__), __LINE__, PSTR(__func__));
+  log_manager->debug(PSTR(__func__),PSTR("Finished: (size %d bytes, %d bytes written in %ld ms)\n"), len, len-to_write, millis()-start_ts);
 }
