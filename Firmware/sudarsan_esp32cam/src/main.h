@@ -82,9 +82,8 @@ const char* settingsPath = "/settings.json";
 struct Settings
 {
     unsigned long lastUpdated;
-    bool fTeleDev;
-    unsigned long publishInterval;
-    unsigned long myTaskInterval;
+    unsigned long intvDevTel;
+    unsigned long intvSnap;
     uint8_t frameSize;
     int jpegQuality;
     uint16_t tempBuffSize;
@@ -118,6 +117,6 @@ void loadSettings();
 void saveSettings();
 void syncClientAttributes();
 void publishDeviceTelemetry();
-void myTask();
+void snap();
 void publishMqtt(const char* channel, uint8_t *data, uint32_t len);
 #endif

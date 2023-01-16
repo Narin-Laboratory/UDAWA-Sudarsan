@@ -28,20 +28,22 @@ void setup()
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
   startup();
   loadSettings();
+  if(String(config.model) == String("Generic")){
+    strlcpy(config.model, "Sudarsan", sizeof(config.model));
+  }
 
   networkInit();
   tb.setBufferSize(DOCSIZE);
 
-  if(mySettings.fTeleDev)
-  {
-    taskManager.scheduleFixedRate(1000, [] {
+  if(mySettings.intvDevTel != 0){
+    taskid_t taskPublishDeviceTelemetry = taskManager.scheduleFixedRate(mySettings.intvDevTel * 1000, [] {
       publishDeviceTelemetry();
     });
   }
 
-  if(mySettings.myTaskInterval > 0){
-    taskManager.scheduleFixedRate(mySettings.myTaskInterval * 1000, [] {
-      myTask();
+  if(mySettings.intvSnap != 0){
+    taskid_t tasksnap = taskManager.scheduleFixedRate(mySettings.intvSnap * 1000, [] {
+      snap();
     });
   }
 
@@ -56,17 +58,17 @@ void loop()
   {
     if(tb.callbackSubscribe(callbacks, callbacksSize))
     {
-      log_manager->info(PSTR(__func__),PSTR("Callbacks subscribed successfuly!"));
+      log_manager->info(PSTR(__func__),PSTR("Callbacks subscribed successfuly!\n"));
       FLAG_IOT_SUBSCRIBE = false;
     }
     if (tb.Firmware_Update(CURRENT_FIRMWARE_TITLE, CURRENT_FIRMWARE_VERSION))
     {
-      log_manager->info(PSTR(__func__),PSTR("OTA Update finished, rebooting..."));
+      log_manager->info(PSTR(__func__),PSTR("OTA Update finished, rebooting...\n"));
       reboot();
     }
     else
     {
-      log_manager->info(PSTR(__func__),PSTR("Firmware up-to-date."));
+      log_manager->info(PSTR(__func__),PSTR("Firmware up-to-date.\n"));
     }
 
     syncClientAttributes();
@@ -78,22 +80,22 @@ void loadSettings()
   StaticJsonDocument<DOCSIZE> doc;
   readSettings(doc, settingsPath);
 
-  if(doc["fTeleDev"] != nullptr)
+  if(doc["intvDevTel"] != nullptr)
   {
-    mySettings.fTeleDev = doc["fTeleDev"].as<bool>();
+    mySettings.intvDevTel = doc["intvDevTel"].as<unsigned long>();
   }
   else
   {
-    mySettings.fTeleDev = 1;
+    mySettings.intvDevTel = 1;
   }
 
-  if(doc["myTaskInterval"] != nullptr)
+  if(doc["intvSnap"] != nullptr)
   {
-    mySettings.myTaskInterval = doc["myTaskInterval"].as<unsigned long>();
+    mySettings.intvSnap = doc["intvSnap"].as<unsigned long>();
   }
   else
   {
-    mySettings.myTaskInterval = 0;
+    mySettings.intvSnap = 0;
   }
 
   if(doc["frameSize"] != nullptr)
@@ -129,8 +131,8 @@ void saveSettings()
 {
   StaticJsonDocument<DOCSIZE> doc;
 
-  doc["fTeleDev"] = mySettings.fTeleDev;
-  doc["myTaskInterval"] = mySettings.myTaskInterval;
+  doc["intvDevTel"] = mySettings.intvDevTel;
+  doc["intvSnap"] = mySettings.intvSnap;
   doc["frameSize"] = mySettings.frameSize;
   doc["jpegQuality"] = mySettings.jpegQuality;
   doc["tempBuffSize"] = mySettings.tempBuffSize;
@@ -161,7 +163,7 @@ callbackResponse processReboot(const callbackData &data)
 
 callbackResponse processSnap(const callbackData &data)
 {
-  myTask();
+  snap();
   return callbackResponse("snap", 1);
 }
 
@@ -185,7 +187,7 @@ callbackResponse processSyncClientAttributes(const callbackData &data)
 
 callbackResponse processSharedAttributesUpdate(const callbackData &data)
 {
-  //log_manager->debug(PSTR(__func__),PSTR("Received shared attributes update:"));
+  //log_manager->debug(PSTR(__func__),PSTR("Received shared attributes update:\n"));
   //recordLog(5, PSTR(__FILE__), __LINE__, PSTR(__func__));
   if(config.logLev >= 4){serializeJsonPretty(data, Serial);}
 
@@ -203,8 +205,8 @@ callbackResponse processSharedAttributesUpdate(const callbackData &data)
   if(data["logLev"] != nullptr){config.logLev = data["logLev"].as<uint8_t>();}
   if(data["gmtOffset"] != nullptr){config.gmtOffset = data["gmtOffset"].as<int>();}
 
-  if(data["fTeleDev"] != nullptr){mySettings.fTeleDev = data["fTeleDev"].as<bool>();}
-  if(data["myTaskInterval"] != nullptr){mySettings.myTaskInterval = data["myTaskInterval"].as<unsigned long>();}
+  if(data["intvDevTel"] != nullptr){mySettings.intvDevTel = data["intvDevTel"].as<unsigned long>();}
+  if(data["intvSnap"] != nullptr){mySettings.intvSnap = data["intvSnap"].as<unsigned long>();}
   if(data["frameSize"] != nullptr){mySettings.frameSize = data["frameSize"].as<uint8_t>();}
   if(data["jpegQuality"] != nullptr){mySettings.jpegQuality = data["jpegQuality"].as<int>();}
   if(data["tempBuffSize"] != nullptr){mySettings.tempBuffSize = data["tempBuffSize"].as<uint16_t>();}
@@ -252,8 +254,8 @@ void syncClientAttributes()
   doc.clear();
   doc["logLev"] = config.logLev;
   doc["gmtOffset"] = config.gmtOffset;
-  doc["fTeleDev"] = mySettings.fTeleDev;
-  doc["myTaskInterval"] = mySettings.myTaskInterval;
+  doc["intvDevTel"] = mySettings.intvDevTel;
+  doc["intvSnap"] = mySettings.intvSnap;
   doc["frameSize"] = mySettings.frameSize;
   doc["jpegQuality"] = mySettings.jpegQuality;
   doc["tempBuffSize"] = mySettings.tempBuffSize;
@@ -272,7 +274,7 @@ void publishDeviceTelemetry()
   doc.clear();
 }
 
-void myTask()
+void snap()
 {
   if(tb.connected())
   {
@@ -314,7 +316,7 @@ void myTask()
     fb = esp_camera_fb_get();
 
     if (!fb) {
-      log_manager->error(PSTR(__func__),PSTR("Camera capture failed."));
+      log_manager->error(PSTR(__func__),PSTR("Camera capture failed.\n"));
     }
     else
     {
