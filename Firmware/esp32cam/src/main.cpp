@@ -44,6 +44,8 @@ void setup()
       myTask();
     });
   }
+
+  config.logLev = 5;
 }
 
 void loop()
