@@ -303,15 +303,15 @@ void snap()
     cam.frame_size = (framesize_t)mySettings.frameSize;
     cam.jpeg_quality = mySettings.jpegQuality;
 
-    log_manager->debug(PSTR(__func__),PSTR("Taking snap (jpegQuality: %d, frameSize: %d), please wait."), cam.jpeg_quality, (int)cam.frame_size);
+    log_manager->debug(PSTR(__func__),PSTR("Taking snap (jpegQuality: %d, frameSize: %d), please wait.\n"), cam.jpeg_quality, (int)cam.frame_size);
 
     // camera init
     esp_err_t err = esp_camera_init(&cam);
     if (err != ESP_OK) {
-      log_manager->error(PSTR(__func__),PSTR("Camera init failed with error 0x%x"), err);
+      log_manager->error(PSTR(__func__),PSTR("Camera init failed with error 0x%x\n"), err);
       esp_camera_deinit();
     }
-    delay(5000);
+
     camera_fb_t * fb = NULL;
     fb = esp_camera_fb_get();
 
@@ -346,12 +346,13 @@ void snap()
       serializeJson(doc, data, finalDataSize);
       doc.clear();
 
-      log_manager->debug(PSTR(__func__),PSTR("Snap size %d.  Memory: %d/%d - %d. Sending now..."), finalDataSize, heap_caps_get_free_size(MALLOC_CAP_32BIT), ESP.getPsramSize(), ESP.getFreeHeap());
+      log_manager->debug(PSTR(__func__),PSTR("Snap size %d.  Memory: %d/%d - %d. Sending now...\n"), finalDataSize, heap_caps_get_free_size(MALLOC_CAP_32BIT), ESP.getPsramSize(), ESP.getFreeHeap());
 
       const char* topic = "v1/devices/me/attributes";
       publishMqtt(topic, data, finalDataSize);
       free(data);
     }
+    esp_camera_fb_return(fb);
   }
 }
 
@@ -376,5 +377,5 @@ void publishMqtt(const char* channel, uint8_t *data, uint32_t len) {
 
   tb.endPublish();
 
-  log_manager->debug(PSTR(__func__),PSTR("Finished: (size %d bytes, %d bytes written in %ld ms)\n"), len, len-to_write, millis()-start_ts);
+  log_manager->debug(PSTR(__func__),PSTR("Finished: (size %d bytes, %d bytes written in %ld ms)\n\n"), len, len-to_write, millis()-start_ts);
 }
