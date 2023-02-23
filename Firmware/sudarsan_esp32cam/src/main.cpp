@@ -10,7 +10,7 @@
 using namespace libudawa;
 Settings mySettings;
 
-const size_t callbacksSize = 9;
+const size_t callbacksSize = 10;
 GenericCallback callbacks[callbacksSize] = {
   { "sharedAttributesUpdate", processSharedAttributesUpdate },
   { "provisionResponse", processProvisionResponse },
@@ -20,7 +20,8 @@ GenericCallback callbacks[callbacksSize] = {
   { "reboot", processReboot },
   { "snap", processSnap },
   { "setFlash", processSetFlash },
-  { "getFlash", processGetFlash }
+  { "getFlash", processGetFlash },
+  { "resetConfig",  processResetConfig}
 };
 
 void setup()
@@ -125,6 +126,53 @@ void loadSettings()
     mySettings.tempBuffSize = 16384;
   }
 
+if(doc["brightness"] != nullptr){mySettings.brightness = doc["brightness"].as<int>();}
+  else{mySettings.brightness = 0;}
+if(doc["contrast"] != nullptr){mySettings.contrast = doc["contrast"].as<int>();}
+  else{mySettings.contrast = 0;}
+if(doc["saturation"] != nullptr){mySettings.saturation = doc["saturation"].as<int>();}
+  else{mySettings.saturation = 0;}
+if(doc["special_effect"] != nullptr){mySettings.special_effect = doc["special_effect"].as<int>();}
+  else{mySettings.special_effect = 0;}
+if(doc["whitebal"] != nullptr){mySettings.whitebal = doc["whitebal"].as<int>();}
+  else{mySettings.whitebal = 1;}
+if(doc["awb_gain"] != nullptr){mySettings.awb_gain = doc["awb_gain"].as<int>();}
+  else{mySettings.awb_gain = 1;}
+if(doc["wb_mode"] != nullptr){mySettings.wb_mode = doc["wb_mode"].as<int>();}
+  else{mySettings.wb_mode = 0;}
+if(doc["exposure_ctrl"] != nullptr){mySettings.exposure_ctrl = doc["exposure_ctrl"].as<int>();}
+  else{mySettings.exposure_ctrl = 0;}
+if(doc["aec2"] != nullptr){mySettings.aec2 = doc["aec2"].as<int>();}
+  else{mySettings.brightness = 0;}
+if(doc["ae_level"] != nullptr){mySettings.ae_level = doc["ae_level"].as<int>();}
+  else{mySettings.ae_level = 0;}
+if(doc["aec_value"] != nullptr){mySettings.aec_value = doc["aec_value"].as<int>();}
+  else{mySettings.aec_value = 300;}
+if(doc["gain_ctrl"] != nullptr){mySettings.gain_ctrl = doc["gain_ctrl"].as<int>();}
+  else{mySettings.gain_ctrl = 1;}
+if(doc["agc_gain"] != nullptr){mySettings.agc_gain = doc["agc_gain"].as<int>();}
+  else{mySettings.agc_gain = 0;}
+if(doc["gainceiling"] != nullptr){mySettings.gainceiling = doc["gainceiling"].as<gainceiling_t>();}
+  else{mySettings.gainceiling = (gainceiling_t)0;}
+if(doc["bpc"] != nullptr){mySettings.bpc = doc["bpc"].as<int>();}
+  else{mySettings.bpc = 0;}
+if(doc["wpc"] != nullptr){mySettings.wpc = doc["wpc"].as<int>();}
+  else{mySettings.wpc = 1;}
+if(doc["raw_gma"] != nullptr){mySettings.raw_gma = doc["raw_gma"].as<int>();}
+  else{mySettings.raw_gma = 1;}
+if(doc["lenc"] != nullptr){mySettings.lenc = doc["lenc"].as<int>();}
+  else{mySettings.lenc = 1;}
+if(doc["hmirror"] != nullptr){mySettings.hmirror = doc["hmirror"].as<int>();}
+  else{mySettings.hmirror = 1;}
+if(doc["vflip"] != nullptr){mySettings.vflip = doc["vflip"].as<int>();}
+  else{mySettings.vflip = 1;}
+if(doc["lenc"] != nullptr){mySettings.lenc = doc["lenc"].as<int>();}
+  else{mySettings.lenc = 1;}
+if(doc["dcw"] != nullptr){mySettings.dcw = doc["dcw"].as<int>();}
+  else{mySettings.dcw = 1;}
+if(doc["colorbar"] != nullptr){mySettings.colorbar = doc["colorbar"].as<int>();}
+  else{mySettings.colorbar = 0;}
+
 }
 
 void saveSettings()
@@ -137,7 +185,36 @@ void saveSettings()
   doc["jpegQuality"] = mySettings.jpegQuality;
   doc["tempBuffSize"] = mySettings.tempBuffSize;
 
+  doc["brightness"] = mySettings.brightness;
+  doc["contrast"] = mySettings.contrast;
+  doc["saturation"] = mySettings.saturation;
+  doc["special_effect"] = mySettings.special_effect;
+  doc["whitebal"] = mySettings.whitebal;
+  doc["awb_gain"] = mySettings.awb_gain;
+  doc["wb_mode"] = mySettings.wb_mode;
+  doc["exposure_ctrl"] = mySettings.exposure_ctrl;
+  doc["aec2"] = mySettings.aec2;
+  doc["ae_level"] = mySettings.ae_level;
+  doc["aec_value"] = mySettings.aec_value;
+  doc["gain_ctrl"] = mySettings.gain_ctrl;
+  doc["agc_gain"] = mySettings.agc_gain;
+  doc["gainceiling"] = mySettings.gainceiling;
+  doc["bpc"] = mySettings.bpc;
+  doc["wpc"] = mySettings.wpc;
+  doc["raw_gma"] = mySettings.raw_gma;
+  doc["lenc"] = mySettings.lenc;
+  doc["hmirror"] = mySettings.hmirror;
+  doc["vflip"] = mySettings.vflip;
+  doc["dcw"] = mySettings.dcw;
+  doc["colorbar"] = mySettings.colorbar;
+
   writeSettings(doc, settingsPath);
+}
+
+callbackResponse processResetConfig(const callbackData &data){
+  configReset();
+  reboot();
+  return callbackResponse("resetConfig", 1);
 }
 
 callbackResponse processSaveConfig(const callbackData &data)
@@ -211,13 +288,37 @@ callbackResponse processSharedAttributesUpdate(const callbackData &data)
   if(data["jpegQuality"] != nullptr){mySettings.jpegQuality = data["jpegQuality"].as<int>();}
   if(data["tempBuffSize"] != nullptr){mySettings.tempBuffSize = data["tempBuffSize"].as<uint16_t>();}
 
+  if(data["brightness"] != nullptr){mySettings.brightness = data["brightness"].as<int>();}
+  if(data["contrast"] != nullptr){mySettings.contrast = data["contrast"].as<int>();}
+  if(data["saturation"] != nullptr){mySettings.saturation = data["saturation"].as<int>();}
+  if(data["special_effect"] != nullptr){mySettings.special_effect = data["special_effect"].as<int>();}
+  if(data["whitebal"] != nullptr){mySettings.whitebal = data["whitebal"].as<int>();}
+  if(data["awb_gain"] != nullptr){mySettings.awb_gain = data["awb_gain"].as<int>();}
+  if(data["wb_mode"] != nullptr){mySettings.wb_mode = data["wb_mode"].as<int>();}
+  if(data["exposure_ctrl"] != nullptr){mySettings.exposure_ctrl = data["exposure_ctrl"].as<int>();}
+  if(data["aec2"] != nullptr){mySettings.aec2 = data["aec2"].as<int>();}
+  if(data["ae_level"] != nullptr){mySettings.ae_level = data["ae_level"].as<int>();}
+  if(data["aec_value"] != nullptr){mySettings.aec_value = data["aec_value"].as<int>();}
+  if(data["gain_ctrl"] != nullptr){mySettings.gain_ctrl = data["gain_ctrl"].as<int>();}
+  if(data["agc_gain"] != nullptr){mySettings.agc_gain = data["agc_gain"].as<int>();}
+  if(data["gainceiling"] != nullptr){mySettings.gainceiling = data["gainceiling"].as<gainceiling_t>();}
+  if(data["bpc"] != nullptr){mySettings.bpc = data["bpc"].as<int>();}
+  if(data["wpc"] != nullptr){mySettings.wpc = data["wpc"].as<int>();}
+  if(data["raw_gma"] != nullptr){mySettings.raw_gma = data["raw_gma"].as<int>();}
+  if(data["lenc"] != nullptr){mySettings.lenc = data["lenc"].as<int>();}
+  if(data["hmirror"] != nullptr){mySettings.hmirror = data["hmirror"].as<int>();}
+  if(data["vflip"] != nullptr){mySettings.vflip = data["vflip"].as<int>();}
+  if(data["lenc"] != nullptr){mySettings.lenc = data["lenc"].as<int>();}
+  if(data["dcw"] != nullptr){mySettings.dcw = data["dcw"].as<int>();}
+  if(data["colorbar"] != nullptr){mySettings.colorbar = data["colorbar"].as<int>();}
+
   mySettings.lastUpdated = millis();
   return callbackResponse("sharedAttributesUpdate", 1);
 }
 
 void syncClientAttributes()
 {
-  StaticJsonDocument<DOCSIZE> doc;
+  StaticJsonDocument<DOCSIZE_MIN> doc;
 
   IPAddress ip = WiFi.localIP();
   char ipa[25];
@@ -261,11 +362,44 @@ void syncClientAttributes()
   doc["tempBuffSize"] = mySettings.tempBuffSize;
   tb.sendAttributeDoc(doc);
   doc.clear();
+
+  doc["brightness"] = mySettings.brightness;
+  doc["contrast"] = mySettings.contrast;
+  doc["saturation"] = mySettings.saturation;
+  doc["special_effect"] = mySettings.special_effect;
+  doc["whitebal"] = mySettings.whitebal;
+  tb.sendAttributeDoc(doc);
+  doc.clear();
+  doc["awb_gain"] = mySettings.awb_gain;
+  doc["wb_mode"] = mySettings.wb_mode;
+  doc["exposure_ctrl"] = mySettings.exposure_ctrl;
+  doc["aec2"] = mySettings.aec2;
+  doc["ae_level"] = mySettings.ae_level;
+  tb.sendAttributeDoc(doc);
+  doc.clear();
+  doc["aec_value"] = mySettings.aec_value;
+  doc["gain_ctrl"] = mySettings.gain_ctrl;
+  doc["agc_gain"] = mySettings.agc_gain;
+  doc["gainceiling"] = mySettings.gainceiling;
+  tb.sendAttributeDoc(doc);
+  doc.clear();
+  doc["bpc"] = mySettings.bpc;
+  doc["wpc"] = mySettings.wpc;
+  doc["raw_gma"] = mySettings.raw_gma;
+  doc["lenc"] = mySettings.lenc;
+  tb.sendAttributeDoc(doc);
+  doc.clear();
+  doc["hmirror"] = mySettings.hmirror;
+  doc["vflip"] = mySettings.vflip;
+  doc["dcw"] = mySettings.dcw;
+  doc["colorbar"] = mySettings.colorbar;
+  tb.sendAttributeDoc(doc);
+  doc.clear();
 }
 
 void publishDeviceTelemetry()
 {
-  StaticJsonDocument<DOCSIZE> doc;
+  StaticJsonDocument<DOCSIZE_MIN> doc;
 
   doc["heap"] = heap_caps_get_free_size(MALLOC_CAP_32BIT);
   doc["rssi"] = WiFi.RSSI();
@@ -311,6 +445,30 @@ void snap()
       log_manager->error(PSTR(__func__),PSTR("Camera init failed with error 0x%x\n"), err);
       esp_camera_deinit();
     }
+    sensor_t * s = esp_camera_sensor_get();
+
+    s->set_brightness(s, mySettings.brightness);     // -2 to 2
+    s->set_contrast(s, mySettings.contrast);       // -2 to 2
+    s->set_saturation(s, mySettings.saturation);     // -2 to 2
+    s->set_special_effect(s, mySettings.special_effect); // 0 to 6 (0 - No Effect, 1 - Negative, 2 - Grayscale, 3 - Red Tint, 4 - Green Tint, 5 - Blue Tint, 6 - Sepia)
+    s->set_whitebal(s, mySettings.whitebal);       // 0 = disable , 1 = enable
+    s->set_awb_gain(s, mySettings.awb_gain);       // 0 = disable , 1 = enable
+    s->set_wb_mode(s, mySettings.wb_mode);        // 0 to 4 - if awb_gain enabled (0 - Auto, 1 - Sunny, 2 - Cloudy, 3 - Office, 4 - Home)
+    s->set_exposure_ctrl(s, mySettings.exposure_ctrl);  // 0 = disable , 1 = enable
+    s->set_aec2(s, mySettings.aec2);           // 0 = disable , 1 = enable
+    s->set_ae_level(s, mySettings.ae_level);       // -2 to 2
+    s->set_aec_value(s, mySettings.aec_value);    // 0 to 1200
+    s->set_gain_ctrl(s, mySettings.gain_ctrl);      // 0 = disable , 1 = enable
+    s->set_agc_gain(s, mySettings.agc_gain);       // 0 to 30
+    s->set_gainceiling(s, mySettings.gainceiling);  // 0 to 6
+    s->set_bpc(s, mySettings.bpc);            // 0 = disable , 1 = enable
+    s->set_wpc(s, mySettings.wpc);            // 0 = disable , 1 = enable
+    s->set_raw_gma(s, mySettings.raw_gma);        // 0 = disable , 1 = enable
+    s->set_lenc(s, mySettings.lenc);           // 0 = disable , 1 = enable
+    s->set_hmirror(s, mySettings.hmirror);        // 0 = disable , 1 = enable
+    s->set_vflip(s, mySettings.vflip);          // 0 = disable , 1 = enable
+    s->set_dcw(s, mySettings.dcw);            // 0 = disable , 1 = enable
+    s->set_colorbar(s, mySettings.colorbar);       // 0 = disable , 1 = enable
 
     camera_fb_t * fb = NULL;
     fb = esp_camera_fb_get();

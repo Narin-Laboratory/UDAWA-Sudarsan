@@ -47,7 +47,8 @@ ny6l9/duT2POAsUN5IwHGDu8b2NT+vCUQRFVHY31
 -----END CERTIFICATE-----
 )EOF";
 
-#define DOCSIZE 1024
+#define DOCSIZE 2048
+#define DOCSIZE_MIN 384
 #include <libudawa.h>
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
@@ -87,6 +88,29 @@ struct Settings
     uint8_t frameSize;
     int jpegQuality;
     uint16_t tempBuffSize;
+
+    int brightness = 0;     // -2 to 2
+    int contrast = 0;       // -2 to 2
+    int saturation = 0;     // -2 to 2
+    int special_effect = 0; // 0 to 6 (0 - No Effect, 1 - Negative, 2 - Grayscale, 3 - Red Tint, 4 - Green Tint, 5 - Blue Tint, 6 - Sepia)
+    int whitebal = 1;       // 0 = disable , 1 = enable
+    int awb_gain = 1;       // 0 = disable , 1 = enable
+    int wb_mode = 0;        // 0 to 4 - if awb_gain enabled (0 - Auto, 1 - Sunny, 2 - Cloudy, 3 - Office, 4 - Home)
+    int exposure_ctrl = 0;  // 0 = disable , 1 = enable
+    int aec2 = 0;           // 0 = disable , 1 = enable
+    int ae_level = 0;       // -2 to 2
+    int aec_value = 300;    // 0 to 1200
+    int gain_ctrl = 1;      // 0 = disable , 1 = enable
+    int agc_gain = 0;       // 0 to 30
+    gainceiling_t gainceiling = (gainceiling_t)0;  // 0 to 6
+    int bpc = 0;            // 0 = disable , 1 = enable
+    int wpc = 1;            // 0 = disable , 1 = enable
+    int raw_gma = 1;        // 0 = disable , 1 = enable
+    int lenc = 1;           // 0 = disable , 1 = enable
+    int hmirror = 1;        // 0 = disable , 1 = enable
+    int vflip = 1;          // 0 = disable , 1 = enable
+    int dcw = 1;            // 0 = disable , 1 = enable
+    int colorbar = 0;       // 0 = disable , 1 = enable
 };
 
 struct SpiRamAllocator {
@@ -112,6 +136,7 @@ callbackResponse processReboot(const callbackData &data);
 callbackResponse processSnap(const callbackData &data);
 callbackResponse processSetFlash(const callbackData &data);
 callbackResponse processGetFlash(const callbackData &data);
+callbackResponse processResetConfig(const callbackData &data);
 
 void loadSettings();
 void saveSettings();
