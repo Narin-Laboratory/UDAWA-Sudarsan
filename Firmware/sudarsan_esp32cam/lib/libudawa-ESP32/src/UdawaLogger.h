@@ -1,5 +1,5 @@
-#ifndef UdawaLogger_h
-#define UdawaLogger_h
+#ifndef UDAWALOGGER_H
+#define UDAWALOGGER_H
 
 #include <Arduino.h>
 #include <stdarg.h>
@@ -25,13 +25,6 @@ class ILogHandler
 
 class UdawaLogger
 {
-    private:
-        UdawaLogger(const LogLevel logLevel) : _logLevel(logLevel){}
-        void dispatchMessage(const char *tag, const LogLevel level, const char *fmt, va_list args);
-        std::list<ILogHandler*> _logHandlers;
-        static UdawaLogger *_logManager;
-        LogLevel _logLevel;
-
     public:
         void operator = (const UdawaLogger &) = delete;
         static UdawaLogger *getInstance(const LogLevel logLevel = LogLevel::VERBOSE);
@@ -44,6 +37,13 @@ class UdawaLogger
         void warn(const char *tag, const char *fmt, ...);
         void error(const char *tag, const char *fmt, ...);
         void setLogLevel(LogLevel level);
+        
+    private:
+        UdawaLogger(const LogLevel logLevel) : _logLevel(logLevel){}
+        void dispatchMessage(const char *tag, const LogLevel level, const char *fmt, va_list args);
+        std::list<ILogHandler*> _logHandlers;
+        static UdawaLogger *_logManager;
+        LogLevel _logLevel;
 };
 
 #endif

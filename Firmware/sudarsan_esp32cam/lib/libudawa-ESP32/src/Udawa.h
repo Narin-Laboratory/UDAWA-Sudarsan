@@ -1,15 +1,16 @@
-#ifndef Udawa_h
-#define Udawa_h
-#include "UdawaSerialLogger.h"
+#ifndef UDAWA_H
+#define UDAWA_H
 #include "UdawaLogger.h"
 #include "UdawaWiFiHelper.h"
+#include <functional> 
+
 
 class Udawa {
     public:
-        Udawa(uint32_t baudRate);
+        Udawa();
         void run();
+        void begin();
     private:
-        UdawaSerialLogger _serialLogger;
         UdawaLogger *_logger = UdawaLogger::getInstance(LogLevel::VERBOSE);
         UdawaWiFiHelper _wiFiHelper;
         void _onWiFiConnected();

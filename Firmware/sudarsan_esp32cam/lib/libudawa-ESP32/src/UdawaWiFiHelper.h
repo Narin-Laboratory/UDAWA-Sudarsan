@@ -1,24 +1,24 @@
-#ifndef UdawaWiFiHelper_h
-#define UdawaWiFiHelper_h
+#ifndef UDAWAWIFIHELPER_H
+#define UDAWAWIFIHELPER_H
 
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiMulti.h>
 #include "UdawaLogger.h"
+#include "UdawaSerialLogger.h"
 #include <vector>
-
-typedef void (*WiFiConnectedCallback)(); 
-typedef void (*WiFiDisconnectedCallback)(); 
-typedef void (*WiFiGotIPCallback)(); 
 
 class UdawaWiFiHelper{
     public:
-        UdawaWiFiHelper(const char* wssid, const char* wpass,
-            const char* dssid, const char* dpass, const char* hname);
+        UdawaWiFiHelper();
+        typedef std::function<void()> WiFiConnectedCallback;
+        typedef std::function<void()> WiFiDisconnectedCallback;
+        typedef std::function<void()> WiFiGotIPCallback;
         void addOnConnectedCallback(WiFiConnectedCallback callback);
         void addOnDisconnectedCallback(WiFiDisconnectedCallback callback);
         void addOnGotIPCallback(WiFiGotIPCallback callback);
-        void begin();
+        void begin(const char* wssid, const char* wpass,
+            const char* dssid, const char* dpass, const char* hname);
         void run();
     private:
         WiFiMulti _wiFi;

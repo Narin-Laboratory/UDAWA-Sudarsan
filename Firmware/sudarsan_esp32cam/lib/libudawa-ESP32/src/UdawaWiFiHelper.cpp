@@ -1,10 +1,17 @@
 #include "UdawaWiFiHelper.h"
 
-UdawaWiFiHelper::UdawaWiFiHelper(const char* wssid, const char* wpass,
-    const char* dssid, const char* dpass, const char* hname): _wssid(wssid), 
-    _wpass(wpass), _dssid(dssid), _dpass(dpass), _hname(hname) {}
+UdawaWiFiHelper::UdawaWiFiHelper() {
 
-void UdawaWiFiHelper::begin(){
+    }
+
+void UdawaWiFiHelper::begin(const char* wssid, const char* wpass,
+    const char* dssid, const char* dpass, const char* hname){
+    _wssid = wssid; 
+    _wpass = wpass; 
+    _dssid = dssid;
+    _dpass = dpass;
+    _hname = hname;
+    
     _logger->debug(PSTR(__func__), PSTR("Initializing WiFi network...\n"));
     WiFi.mode(WIFI_STA);
     WiFi.setHostname(_hname);

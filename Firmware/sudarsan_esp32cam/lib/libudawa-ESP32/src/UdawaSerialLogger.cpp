@@ -4,8 +4,19 @@
 #include "UdawaSerialLogger.h"
 #include <Arduino.h>
 
+UdawaSerialLogger *UdawaSerialLogger::_serialLogger = nullptr;
+
 UdawaSerialLogger::UdawaSerialLogger(u_int32_t baudRate) : _baudRate(baudRate) {
     Serial.begin(_baudRate);
+}
+
+UdawaSerialLogger *UdawaSerialLogger::getInstance(const uint32_t baudRate)
+{
+    if(_serialLogger == nullptr)
+    {
+        _serialLogger = new UdawaSerialLogger(baudRate);
+    }
+    return _serialLogger;
 }
 
 char UdawaSerialLogger::_getErrorChar(const LogLevel level)
@@ -76,8 +87,8 @@ void UdawaSerialLogger::write(const char *tag, LogLevel level, const char *fmt, 
 
     if(xSemaphoreUdawaSerialLogger != NULL && xSemaphoreTake(xSemaphoreUdawaSerialLogger, (TickType_t) 20))
     {
-        esp_log_level_t esp_log_level = (esp_log_level_t)_mapLogLevel(level);
-        //esp_log_level_t esp_log_level = ESP_LOG_NONE;
+        //esp_log_level_t esp_log_level = (esp_log_level_t)_mapLogLevel(level);
+        esp_log_level_t esp_log_level = ESP_LOG_NONE;
         esp_log_write(esp_log_level, tag, "\033[0;%dm%c (%d) %s: ", _getConsoleColorCode(level), _getErrorChar(level), esp_log_timestamp(), tag);
         esp_log_writev(esp_log_level, tag, fmt, args);
         esp_log_write(esp_log_level, tag, "\033[0m");
