@@ -2,18 +2,30 @@
 #include "UdawaLogger.h"
 #include "UdawaSerialLogger.h"
 #include "Udawa.h"
+#include <TaskScheduler.h>
 
-UdawaLogger *logger = UdawaLogger::getInstance(LogLevel::VERBOSE);
-UdawaSerialLogger *serialLogger = UdawaSerialLogger::getInstance(SERIAL_BAUD_RATE);
 Udawa udawa;
 
+void t1Callback();
+
+//Tasks
+Task t1(2000, TASK_FOREVER, &t1Callback);
+
+
+Scheduler runner;
+
 void setup() {
-  logger->addLogger(serialLogger);
-  logger->setLogLevel(LogLevel::VERBOSE);
   udawa.begin();
+
+  runner.addTask(t1);
+  t1.enable();
 }
 
 void loop() {
   udawa.run();
-  //logger->debug(PSTR(__func__), PSTR("%d\n"), millis());
+  runner.execute();
+}
+
+void t1Callback(){
+  udawa.logger->debug(PSTR(__func__), PSTR("%d\n"), ESP.getFreeHeap());
 }
