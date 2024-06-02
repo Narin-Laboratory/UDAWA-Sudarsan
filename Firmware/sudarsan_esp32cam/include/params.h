@@ -7,6 +7,12 @@
 #define CURRENT_FIRMWARE_VERSION "0.1.0"
 
 #define USE_WIFI_OTA
+#define USE_LOCAL_WEB_INTERFACE
+
+#ifdef USE_LOCAL_WEB_INTERFACE
+#define WS_BLOCKED_DURATION 60000U
+#define WS_RATE_LIMIT_INTERVAL 1000U
+#endif
 
 const int tbPort = 8883;
 constexpr char tbAddr[] PROGMEM = "prita.undiknas.ac.id";
