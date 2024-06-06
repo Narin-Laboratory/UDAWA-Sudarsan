@@ -3,7 +3,12 @@
 Udawa udawa;
 
 void setup() {
+  #ifdef USE_LOCAL_WEB_INTERFACE
   udawa.addOnWsEvent(_onWsEvent);
+  #endif
+  #ifdef USE_IOT
+  //udawa.addOnThingsboardSharedAttributesReceived(_processThingsboardSharedAttributesUpdate);
+  #endif
   udawa.begin();
 }
 
@@ -18,15 +23,21 @@ void loop() {
   }
 }
 
+#ifdef USE_LOCAL_WEB_INTERFACE
 void _onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len){
   if(type == WS_EVT_CONNECT){
-    udawa.logger->debug(PSTR(__func__),PSTR("ws[%s][%u] connect\n"), server->url(), client->id());
-    client->printf("Hello from main.cpp, Client %u :)", client->id());
-    client->ping();
+   
   }
   else if(type == WS_EVT_DATA){
-    JsonDocument doc;
-    deserializeJson(doc, data);
-    serializeJsonPretty(doc, Serial);
+ 
   }
 }
+#endif
+
+#ifdef USE_IOT
+void _processThingsboardSharedAttributesUpdate(const Shared_Attribute_Data &data){
+  String _data;
+  serializeJson(data, _data);
+  udawa.logger->debug(PSTR(__func__), PSTR("From main.cpp %s\n"), _data.c_str());
+}
+#endif
