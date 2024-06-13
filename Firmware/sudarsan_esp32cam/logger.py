@@ -7,7 +7,7 @@ if len(sys.argv) < 3:
     sys.exit(1)
 
 UDP_IP = sys.argv[1]
-UDP_PORT = int(sys.argv[2])  # Convert port to an integer
+UDP_PORT = int(sys.argv[2])
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind((UDP_IP, UDP_PORT))
@@ -15,7 +15,9 @@ sock.bind((UDP_IP, UDP_PORT))
 print(f"Log viewer listening on {UDP_IP}:{UDP_PORT}")
 
 while True:
-    data, addr = sock.recvfrom(1024)
+    data, addr = sock.recvfrom(1024) 
     log_message = data.decode('utf-8')
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"{timestamp} - {log_message}", end="")
+    # Get IP from addr and format output
+    sender_ip = addr[0]
+    print(f"{timestamp} - {sender_ip} - {log_message}", end="") 
