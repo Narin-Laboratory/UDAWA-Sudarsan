@@ -35,7 +35,7 @@ void _onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEvent
 #endif
 
 #ifdef USE_IOT
-void _processThingsboardSharedAttributesUpdate(const Shared_Attribute_Data &data){
+void _processThingsboardSharedAttributesUpdate(const JsonObjectConst &data){
   String _data;
   serializeJson(data, _data);
   udawa.logger->debug(PSTR(__func__), PSTR("From main.cpp %s\n"), _data.c_str());
