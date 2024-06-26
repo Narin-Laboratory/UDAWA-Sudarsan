@@ -7,7 +7,7 @@ void setup() {
   udawa.addOnWsEvent(_onWsEvent);
   #endif
   #ifdef USE_IOT
-  //udawa.addOnThingsboardSharedAttributesReceived(_processThingsboardSharedAttributesUpdate);
+  udawa.addOnThingsboardSharedAttributesReceived(_processThingsboardSharedAttributesUpdate);
   #endif
   udawa.begin();
 }
