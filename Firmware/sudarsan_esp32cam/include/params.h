@@ -35,6 +35,11 @@ const uint16_t IOT_FIRMWARE_PACKET_SIZE = 4096;
 #define WIFI_LOGGER_BUFFER_SIZE 256UL
 #endif
 
+#define USE_I2C
+#ifdef USE_I2C
+#define USE_HW_RTC
+#endif
+
 const int tbPort = 8883;
 constexpr char tbAddr[] PROGMEM = "prita.undiknas.ac.id";
 constexpr char spiffsBinUrl[] PROGMEM = "http://prita.undiknas.ac.id/cdn/firmware/sudarsan.spiffs.bin";
