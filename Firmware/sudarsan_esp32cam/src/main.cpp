@@ -10,6 +10,7 @@ void setup() {
   udawa.addOnThingsboardSharedAttributesReceived(_processThingsboardSharedAttributesUpdate);
   #endif
   udawa.begin();
+
 }
 
 unsigned long timer = millis();
